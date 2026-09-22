@@ -78,6 +78,40 @@ function sortByDate(bars: DailyBar[]): DailyBar[] {
   return bars.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export const indexDailyRowSchema = z.object({
+  index_code: z.string().nullish(),
+  date: z.string(),
+  price: z.number(),
+});
+
+/**
+ * Parses an index series into the same bar shape as a stock.
+ *
+ * The index endpoint reports its level as `price`, while the daily transaction
+ * endpoint uses `close`. Feeding an index response through the stock parser
+ * silently drops every row, which then empties the date intersection and makes
+ * a twin look impossible to build. Mapping it explicitly is what prevents that.
+ */
+export function parseIndexSeries(data: unknown): DailyBar[] {
+  if (!Array.isArray(data)) return [];
+
+  const bars: DailyBar[] = [];
+  for (const row of data) {
+    const parsed = indexDailyRowSchema.safeParse(row);
+    if (!parsed.success || parsed.data.price <= 0) continue;
+    bars.push({
+      date: parsed.data.date,
+      close: parsed.data.price,
+      open: null,
+      high: null,
+      low: null,
+      volume: 0,
+      marketCap: 0,
+    });
+  }
+  return bars.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 const allTimePriceSchema = z.record(z.string(), z.unknown()).nullish();
 
 export const companyReportSchema = z.object({

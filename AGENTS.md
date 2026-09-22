@@ -37,6 +37,27 @@ These exist because the product's value depends on them.
    shape change must surface as a named error, never as `undefined` reaching a
    statistical function.
 
+## Sectors API quirks found the hard way
+
+These cost real debugging time. Check here before assuming a bug is ours.
+
+- **The index endpoint returns `price`, not `close`.** Parsing an index series
+  with `parseDailySeries` silently drops every row, which empties the date
+  intersection in `alignSeries` and makes every twin fail with "0 of 30
+  sessions". Use `parseIndexSeries`. There is a test pinning that the two
+  parsers are not interchangeable.
+- **Index codes are lowercase.** `/v2/index-daily/IHSG/` returns 400; `ihsg`
+  works.
+- **`/v2/daily/` returns far less than 90 days when the window is omitted.**
+  About 21 sessions against 62 for an explicit range, so always pass start and
+  end. `clampWindow` does this.
+- **Seasonality is inherently partial.** The 90 day cap means one fetch covers
+  three or four calendar months, so the panel says so rather than presenting a
+  fragment as a seasonal profile.
+- **EPS and similar per-share figures arrive as long decimals.** Indonesian
+  formatting uses the full stop as a thousands separator, so an unrounded
+  377.5732 reads as 377 thousand. `formatIdr` rounds before formatting.
+
 ## Layout
 
 | Path | Responsibility |

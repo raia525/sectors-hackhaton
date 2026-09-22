@@ -110,10 +110,18 @@ The app runs without a database, falling back to an in-memory cache and credit l
 
 `/preview` renders every analysis panel from fixed synthetic data, so layout and number formatting can be reviewed without spending credits. It returns 404 in production.
 
+`/api/health` reports which capabilities are actually working: environment validity, whether storage is durable, credits spent, and whether email is configured. Add `?smtp=1` to open a real SMTP connection and verify it.
+
+### Email
+
+Alerts are delivered over SMTP, which works with any relay rather than tying the project to one vendor. Set `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` and `NOTIFICATION_FROM_EMAIL`; for Gmail, generate an [app password](https://myaccount.google.com/apppasswords), since a normal account password is rejected. Port 465 uses implicit TLS, and any other port is required to upgrade through STARTTLS, so credentials never cross an unencrypted connection.
+
+Without a complete set, alerts are still saved in the app and nothing is mailed.
+
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Development server |
-| `npm test` | Test suite, 185 tests |
+| `npm test` | Test suite, 193 tests |
 | `npm run test:coverage` | Coverage, 85% floor on the analysis modules |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |

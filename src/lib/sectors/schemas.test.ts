@@ -5,6 +5,7 @@ import {
   newsResponseSchema,
   parseDailySeries,
   parseForeignFlow,
+  parseIndexSeries,
   parseOwnership,
   toPeerProfile,
 } from "./schemas";
@@ -241,6 +242,48 @@ describe("newsResponseSchema", () => {
 
   it("rejects a payload missing the results array", () => {
     expect(() => newsResponseSchema.parse({ nonsense: true })).toThrow();
+  });
+});
+
+describe("parseIndexSeries", () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    index_code: "IHSG",
+    date: "2026-06-25",
+    price: 5999.038,
+    ...over,
+  });
+
+  it("maps the index level from price onto close", () => {
+    // The index endpoint reports `price` while the stock endpoint reports
+    // `close`. Parsing an index with the stock parser drops every row, which
+    // empties the date intersection and makes a twin look impossible to build.
+    const bars = parseIndexSeries([row()]);
+    expect(bars).toHaveLength(1);
+    expect(bars[0].close).toBeCloseTo(5999.038, 6);
+    expect(bars[0].date).toBe("2026-06-25");
+  });
+
+  it("is not interchangeable with the stock parser", () => {
+    // Pins the regression directly: the stock parser must reject index rows,
+    // which is why a dedicated parser exists.
+    expect(parseDailySeries([row()]).bars).toHaveLength(0);
+  });
+
+  it("drops non-positive levels", () => {
+    expect(parseIndexSeries([row({ price: 0 })])).toHaveLength(0);
+  });
+
+  it("sorts chronologically", () => {
+    const bars = parseIndexSeries([
+      row({ date: "2026-07-01" }),
+      row({ date: "2026-06-25" }),
+    ]);
+    expect(bars.map((b) => b.date)).toEqual(["2026-06-25", "2026-07-01"]);
+  });
+
+  it("returns empty for a malformed payload", () => {
+    expect(parseIndexSeries({ error: "bad code" })).toEqual([]);
+    expect(parseIndexSeries(null)).toEqual([]);
   });
 });
 

@@ -15,6 +15,20 @@ if (typeof window !== "undefined") {
   throw new Error("src/lib/env.ts is server-only and must not be imported in the browser.");
 }
 
+/**
+ * Treats an empty or whitespace-only variable as absent.
+ *
+ * A .env file expresses "not set" as a blank value, so an optional field must
+ * accept that rather than failing its own format check on "".
+ */
+function emptyAsUndefined<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    schema.optional(),
+  );
+}
+
 const schema = z.object({
   SECTORS_API_KEY: z.string().min(1, "SECTORS_API_KEY is required."),
   DATABASE_URL: z.string().url("DATABASE_URL must be a valid connection string."),
@@ -27,9 +41,26 @@ const schema = z.object({
   /** Shared secret for the scheduled notification endpoint. */
   CRON_SECRET: z.string().min(16, "CRON_SECRET must be at least 16 characters."),
 
-  /** Email delivery. Optional so the app runs without it in development. */
-  RESEND_API_KEY: z.string().optional(),
-  NOTIFICATION_FROM_EMAIL: z.string().email().optional(),
+  /**
+   * SMTP delivery. Every field is optional so the app runs without email in
+   * development; the dispatcher checks for a complete set before sending and
+   * falls back to in-app notifications when one is missing.
+   *
+   * Empty strings are normalised to undefined first. A blank line in a .env
+   * file means "not configured", but Zod sees "" and fails `.email()`, which
+   * would block the whole application over an optional feature.
+   */
+  SMTP_HOST: emptyAsUndefined(z.string()),
+  // Coercion turns "" into 0, which would fail the range check, so a blank
+  // value falls back to the default rather than erroring.
+  SMTP_PORT: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.coerce.number().int().min(1).max(65535).default(587),
+  ),
+  SMTP_USER: emptyAsUndefined(z.string()),
+  SMTP_PASSWORD: emptyAsUndefined(z.string()),
+  NOTIFICATION_FROM_EMAIL: emptyAsUndefined(z.string().email()),
 
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 characters."),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

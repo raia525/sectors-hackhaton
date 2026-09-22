@@ -7,6 +7,7 @@ import {
   newsResponseSchema,
   parseDailySeries,
   parseForeignFlow,
+  parseIndexSeries,
   parseOwnership,
   toPeerProfile,
 } from "@/lib/sectors/schemas";
@@ -163,7 +164,9 @@ export async function analyzeSymbol(
     }
   }
 
-  const { bars: marketBars } = parseDailySeries(await client.indexDaily("ihsg"));
+  // The index endpoint reports `price` rather than `close`, so it needs its
+  // own parser; the stock parser would drop every row.
+  const marketBars = parseIndexSeries(await client.indexDaily("ihsg"));
   if (marketBars.length === 0) {
     notices.push(
       "IHSG history was unavailable, so the market component of the attribution is reported as zero.",

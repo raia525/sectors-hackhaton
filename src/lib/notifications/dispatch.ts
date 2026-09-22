@@ -1,6 +1,5 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { getEnv } from "@/lib/env";
 import { analyzeSymbol } from "@/lib/analysis/service";
 import { summarizeCorporateActions } from "@/lib/analysis/corporate-actions";
 import { getSectorsClient } from "@/lib/sectors/server";
@@ -12,6 +11,7 @@ import {
   type WatchState,
 } from "./rules";
 import { renderDigestEmail } from "./email";
+import { sendMail } from "./mailer";
 
 /**
  * Scheduled alert run.
@@ -164,37 +164,15 @@ export async function runScheduledAlerts(now = new Date()): Promise<RunSummary> 
 /**
  * Sends the digest by email.
  *
- * Returns false rather than throwing when email is not configured: the in-app
- * notifications are already saved at this point, so a missing email provider
- * should degrade the run, not fail it.
+ * Returns false rather than throwing when email is unconfigured or the relay
+ * refuses: the in-app notifications are already saved at this point, so a mail
+ * failure should degrade the run, not fail it and lose the alerts.
  */
 async function sendDigestEmail(
   email: string,
   name: string | null,
   digest: { alerts: Alert[]; omitted: number },
 ): Promise<boolean> {
-  const env = getEnv();
-  if (!env.RESEND_API_KEY || !env.NOTIFICATION_FROM_EMAIL) return false;
-
   const { subject, html, text } = renderDigestEmail(name, digest);
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.NOTIFICATION_FROM_EMAIL,
-        to: email,
-        subject,
-        html,
-        text,
-      }),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+  return sendMail({ to: email, subject, html, text });
 }

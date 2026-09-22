@@ -113,6 +113,15 @@ export function analyzeSeasonality(bars: DailyBar[]): SeasonalityResult {
     "Seasonality describes what happened in past calendar months. It carries no information about what any future month will do.",
   );
 
+  // The daily transaction endpoint caps its window at 90 days, so a single
+  // fetch covers only three or four months of one year. Saying so plainly is
+  // better than presenting four partial months as a seasonal profile.
+  if (months.length < 12) {
+    caveats.push(
+      `Only ${months.length} of 12 calendar months appear in the available price history, so this is a partial view rather than a full seasonal profile.`,
+    );
+  }
+
   if (reliable.length === 0) {
     caveats.push(
       `No month has at least ${MIN_YEARS} years of history, so nothing here is described as a seasonal tendency.`,
