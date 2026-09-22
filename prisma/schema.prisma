@@ -1,0 +1,129 @@
+// SHADOW IDX data model.
+//
+// Two jobs: persist user watchlists and portfolios, and cache Sectors API
+// responses durably. The cache table is what actually protects the 1,000
+// credit budget, since an in-process cache is empty after every cold start and
+// is not shared between serverless instances.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+
+  watchlistItems WatchlistItem[]
+  holdings       Holding[]
+  notifications  Notification[]
+
+  @@map("users")
+}
+
+model WatchlistItem {
+  id     String @id @default(cuid())
+  userId String
+  symbol String
+
+  /// Alert when the absolute divergence z-score exceeds this. Per symbol so a
+  /// volatile small cap and a steady blue chip can have different bars.
+  zScoreThreshold Float @default(2.0)
+
+  notifyOnCorporateAction Boolean @default(true)
+  notifyOnSmartMoney      Boolean @default(true)
+
+  /// Guards against re-sending the same alert on every scheduled run.
+  lastNotifiedAt   DateTime?
+  lastNotifiedZ    Float?
+
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@index([symbol])
+  @@map("watchlist_items")
+}
+
+/// A position, used to express corporate action effects in rupiah rather than
+/// as abstract ratios.
+model Holding {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  lots      Int
+  avgPrice  Float
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@map("holdings")
+}
+
+enum NotificationKind {
+  DIVERGENCE
+  CORPORATE_ACTION
+  SMART_MONEY
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+model Notification {
+  id      String           @id @default(cuid())
+  userId  String
+  symbol  String
+  kind    NotificationKind
+  title   String
+  /// Pre-rendered summary, so the history does not depend on re-running an
+  /// analysis whose inputs have since changed.
+  body    String
+  payload Json?
+
+  channel   NotificationChannel @default(IN_APP)
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// Durable cache for Sectors API responses.
+///
+/// Keyed by full request URL. Survives restarts and is shared across instances,
+/// which is what keeps repeated demo runs inside the credit budget.
+model ApiCache {
+  key       String   @id
+  payload   Json
+  /// Credits the original call cost, for reporting what caching saved.
+  creditCost Int     @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("api_cache")
+}
+
+/// Append-only ledger of API spending, so the budget is auditable rather than
+/// a number held in memory that resets on deploy.
+model CreditUsage {
+  id        String   @id @default(cuid())
+  endpoint  String
+  cost      Int
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("credit_usage")
+}
