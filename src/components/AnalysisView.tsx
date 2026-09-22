@@ -1,8 +1,14 @@
 import { analyzeSymbol, AnalysisError } from "@/lib/analysis/service";
+import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { AttributionBar } from "./AttributionBar";
 import { DivergenceChart } from "./DivergenceChart";
 import { TwinComposition } from "./TwinComposition";
 import { VerdictPanel } from "./VerdictPanel";
+import { KeyStatsPanel } from "./KeyStatsPanel";
+import { CorporateActionsPanel } from "./CorporateActionsPanel";
+import { SeasonalityPanel } from "./SeasonalityPanel";
+import { SmartMoneyPanel } from "./SmartMoneyPanel";
 import { Card, CardHeader, Caveats, EmptyState } from "./ui/primitives";
 
 /**
@@ -15,9 +21,13 @@ import { Card, CardHeader, Caveats, EmptyState } from "./ui/primitives";
  */
 
 export async function AnalysisView({ symbol }: { symbol: string }) {
+  // A signed-in user's holding lets corporate actions be shown in rupiah. The
+  // lookup is skipped entirely for anonymous visitors, who have no position.
+  const position = await loadPosition(symbol);
+
   let result;
   try {
-    result = await analyzeSymbol(symbol);
+    result = await analyzeSymbol(symbol, { position, includeSmartMoney: true });
   } catch (error) {
     return <AnalysisFailure error={error} symbol={symbol} />;
   }
@@ -83,6 +93,46 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
         />
       )}
 
+      <Card>
+        <CardHeader
+          title="Key statistics"
+          description="Valuation, performance, and income figures for this company."
+        />
+        <KeyStatsPanel stats={result.keyStats} />
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader
+            title="Corporate actions"
+            description="Dividends, splits, and meetings, with what each does to a holding."
+          />
+          <CorporateActionsPanel
+            items={result.corporateActions}
+            upcomingIncomeIdr={result.upcomingIncomeIdr}
+            hasPosition={position !== null}
+          />
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Seasonality"
+            description="How this stock has behaved by calendar month, with the years behind each figure."
+          />
+          <SeasonalityPanel data={result.seasonality} />
+        </Card>
+      </div>
+
+      {result.smartMoney ? (
+        <Card>
+          <CardHeader
+            title="Smart money positioning"
+            description="Whether institutional and foreign money is moving with the price or against it."
+          />
+          <SmartMoneyPanel signal={result.smartMoney} />
+        </Card>
+      ) : null}
+
       <Caveats items={realityCheck.caveats} />
 
       {notices.length > 0 ? (
@@ -90,6 +140,29 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Loads the signed-in user's position in this stock, when there is one.
+ *
+ * Failures are swallowed: the database is optional in local setups, and an
+ * absent position only means corporate actions are shown as ratios rather than
+ * rupiah, which is not worth failing the page over.
+ */
+async function loadPosition(
+  symbol: string,
+): Promise<{ lots: number; avgPrice: number } | null> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return null;
+
+    const holding = await prisma.holding.findUnique({
+      where: { userId_symbol: { userId: user.id, symbol: symbol.toUpperCase() } },
+    });
+    return holding ? { lots: holding.lots, avgPrice: holding.avgPrice } : null;
+  } catch {
+    return null;
+  }
 }
 
 function AnalysisFailure({ error, symbol }: { error: unknown; symbol: string }) {

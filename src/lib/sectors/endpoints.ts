@@ -18,6 +18,8 @@ export const CREDIT_COST = {
   news: 1,
   indexDaily: 1,
   screener: 1,
+  foreignFlow: 1,
+  shareholders: 1,
 } as const;
 
 export type CompanyReportSection =
@@ -37,6 +39,9 @@ export const endpoints = {
   news: () => `/v2/news/`,
   indexDaily: (index: string) => `/v2/index-daily/${index}/`,
   screener: () => `/v2/companies/`,
+  foreignFlow: (symbol: string) => `/v2/foreign-flow/${symbol}/`,
+  shareholders: (symbol: string) =>
+    `/v2/company/shareholders-composition/${symbol}/`,
 } as const;
 
 /**

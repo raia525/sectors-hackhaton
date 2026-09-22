@@ -2,7 +2,11 @@ import "server-only";
 import { SectorsClient } from "./client";
 import { MemoryCache, type SectorsCache } from "./cache";
 import { MemoryCreditLedger, type CreditLedger } from "./credits";
-import { PostgresCache, PostgresCreditLedger } from "./persistent";
+import {
+  isDatabaseAvailable,
+  PostgresCache,
+  PostgresCreditLedger,
+} from "./persistent";
 import { getEnv } from "@/lib/env";
 
 /**
@@ -30,11 +34,17 @@ const globalForSectors = globalThis as unknown as {
   sectorsPersistent?: boolean;
 };
 
+/**
+ * Whether to attempt the durable store.
+ *
+ * This only checks that a Postgres URL is configured. It deliberately does not
+ * try to recognise placeholder credentials: that guesswork was wrong for
+ * plausible-looking values, and the persistent layer already degrades to its
+ * in-memory tier and warns once if the database does not answer. Detecting the
+ * real condition beats predicting it.
+ */
 function hasDatabase(): boolean {
-  const url = process.env.DATABASE_URL ?? "";
-  // The example value in .env.example points at a local database that may not
-  // exist; treat only a configured, non-placeholder URL as usable.
-  return url.startsWith("postgres") && !url.includes("user:password@");
+  return (process.env.DATABASE_URL ?? "").startsWith("postgres");
 }
 
 export function getSectorsClient(): SectorsClient {
@@ -62,9 +72,16 @@ export function getSectorsClient(): SectorsClient {
   return client;
 }
 
+/**
+ * Whether storage is actually durable right now.
+ *
+ * Both conditions matter: a durable store must have been selected, and the
+ * database must not have since proved unreachable. Reporting only the first
+ * would tell the UI the credit budget survives restarts when it does not.
+ */
 export function usingPersistentStore(): boolean {
   if (globalForSectors.sectorsPersistent === undefined) getSectorsClient();
-  return globalForSectors.sectorsPersistent ?? false;
+  return (globalForSectors.sectorsPersistent ?? false) && isDatabaseAvailable();
 }
 
 /** Ledger snapshot for the budget indicator in the UI. */

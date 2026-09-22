@@ -6,6 +6,8 @@ import {
   extractPeerSymbols,
   newsResponseSchema,
   parseDailySeries,
+  parseForeignFlow,
+  parseOwnership,
   toPeerProfile,
 } from "@/lib/sectors/schemas";
 import { normalizeSymbol } from "@/lib/sectors/endpoints";
@@ -13,6 +15,16 @@ import { buildShadow } from "@/lib/shadow/engine";
 import type { DailyBar, PeerProfile, ShadowAnalysis } from "@/lib/shadow/types";
 import { runRealityCheck, type RealityCheck } from "./reality-check";
 import type { NewsItem } from "@/lib/sectors/schemas";
+import {
+  summarizeCorporateActions,
+  upcomingIncome,
+  type CorporateActionItem,
+  type Position,
+} from "./corporate-actions";
+import { analyzeSeasonality, type SeasonalityResult } from "./seasonality";
+import { buildKeyStats, type KeyStats } from "./key-stats";
+import { analyzeSmartMoney } from "@/lib/smartmoney/engine";
+import type { SmartMoneySignal } from "@/lib/smartmoney/types";
 
 /**
  * Assembles a complete analysis for one symbol.
@@ -36,8 +48,26 @@ export interface AnalysisResult {
   shadow: ShadowAnalysis;
   realityCheck: RealityCheck;
   news: NewsItem[];
+  keyStats: KeyStats;
+  seasonality: SeasonalityResult;
+  corporateActions: CorporateActionItem[];
+  /** Cash due from upcoming dividends, when the user holds a position. */
+  upcomingIncomeIdr: number | null;
+  /** Null when flow data was unavailable or too thin to score. */
+  smartMoney: SmartMoneySignal | null;
   /** Non-fatal problems, including any peer that could not be fetched. */
   notices: string[];
+}
+
+/** Optional extras, kept off the default path so they cost nothing unasked. */
+export interface AnalyzeOptions {
+  /** A holding, so corporate actions can be expressed in rupiah. */
+  position?: Position | null;
+  /**
+   * Fetches foreign flow and ownership for the smart money signal. Costs two
+   * extra credits, so it is opt-in rather than always on.
+   */
+  includeSmartMoney?: boolean;
 }
 
 export class AnalysisError extends Error {
@@ -67,7 +97,10 @@ async function fetchProfileAndBars(
   return { profile: toPeerProfile(report), bars };
 }
 
-export async function analyzeSymbol(input: string): Promise<AnalysisResult> {
+export async function analyzeSymbol(
+  input: string,
+  options: AnalyzeOptions = {},
+): Promise<AnalysisResult> {
   const symbol = normalizeSymbol(input);
   if (!symbol) {
     throw new AnalysisError(
@@ -153,12 +186,69 @@ export async function analyzeSymbol(input: string): Promise<AnalysisResult> {
     notices.push("Recent news could not be loaded, so the reality check uses price data only.");
   }
 
+  // Corporate actions cost one credit. Seasonality and key stats derive from
+  // data already fetched above, so they add nothing to the bill.
+  let corporateActions: CorporateActionItem[] = [];
+  try {
+    corporateActions = summarizeCorporateActions(
+      await client.corporateActions(symbol),
+      options.position ?? null,
+    );
+  } catch {
+    notices.push("Corporate actions could not be loaded for this stock.");
+  }
+
+  const smartMoney = options.includeSmartMoney
+    ? await loadSmartMoney(symbol, targetBars, notices)
+    : null;
+
   return {
     symbol,
     companyName: targetProfile.companyName,
     shadow,
     realityCheck: runRealityCheck(shadow, news),
     news,
+    keyStats: buildKeyStats(targetReport, targetBars),
+    seasonality: analyzeSeasonality(targetBars),
+    corporateActions,
+    upcomingIncomeIdr: options.position ? upcomingIncome(corporateActions) : null,
+    smartMoney,
     notices,
   };
+}
+
+/**
+ * Fetches flow and ownership for the smart money signal.
+ *
+ * Both calls are tolerated individually: ownership in particular is unavailable
+ * for some tickers, and the engine already degrades to flow alone and says so
+ * in its own caveats.
+ */
+async function loadSmartMoney(
+  symbol: string,
+  bars: DailyBar[],
+  notices: string[],
+): Promise<SmartMoneySignal | null> {
+  const client = getSectorsClient();
+
+  const [flowResult, ownershipResult] = await Promise.allSettled([
+    client.foreignFlow(symbol),
+    client.shareholders(symbol, new Date().getUTCFullYear()),
+  ]);
+
+  const foreignFlow =
+    flowResult.status === "fulfilled" ? parseForeignFlow(flowResult.value) : [];
+  const ownership =
+    ownershipResult.status === "fulfilled"
+      ? parseOwnership(ownershipResult.value)
+      : [];
+
+  if (foreignFlow.length === 0 && ownership.length === 0) {
+    notices.push(
+      "Foreign flow and ownership data were unavailable, so no positioning signal was produced.",
+    );
+    return null;
+  }
+
+  return analyzeSmartMoney({ symbol, bars, foreignFlow, ownership });
 }

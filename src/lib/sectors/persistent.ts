@@ -16,6 +16,33 @@ import type { CreditLedger, LedgerSnapshot } from "./credits";
  * cost a query on every request.
  */
 
+/**
+ * Tracks whether the database has proved unreachable.
+ *
+ * A configured DATABASE_URL is not a guarantee the database answers: the
+ * credentials may be wrong, or it may simply be down. Rather than failing every
+ * page, the persistent layer degrades to its in-memory tier and warns once.
+ * Warning on every request would bury the message in noise.
+ */
+let databaseUnavailable = false;
+let warnedOnce = false;
+
+function noteDatabaseFailure(error: unknown): void {
+  databaseUnavailable = true;
+  if (warnedOnce) return;
+  warnedOnce = true;
+  console.warn(
+    "Database unreachable, falling back to in-memory cache and credit ledger. " +
+      "The credit budget will reset when the server restarts. " +
+      `Cause: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
+  );
+}
+
+/** Test and diagnostics helper. */
+export function isDatabaseAvailable(): boolean {
+  return !databaseUnavailable;
+}
+
 export class PostgresCache implements SectorsCache {
   private readonly hot = new Map<string, { value: unknown; expiresAt: number }>();
 
@@ -26,35 +53,50 @@ export class PostgresCache implements SectorsCache {
     if (local && Date.now() < local.expiresAt) return local.value as T;
     if (local) this.hot.delete(key);
 
-    const row = await prisma.apiCache.findUnique({ where: { key } });
-    if (!row) return null;
+    if (databaseUnavailable) return null;
 
-    if (row.expiresAt.getTime() <= Date.now()) {
-      // Expired rows are cleaned up lazily rather than by a scheduled sweep,
-      // which keeps the deployment free of another moving part.
-      await prisma.apiCache.delete({ where: { key } }).catch(() => {});
+    try {
+      const row = await prisma.apiCache.findUnique({ where: { key } });
+      if (!row) return null;
+
+      if (row.expiresAt.getTime() <= Date.now()) {
+        // Expired rows are cleaned up lazily rather than by a scheduled sweep,
+        // which keeps the deployment free of another moving part.
+        await prisma.apiCache.delete({ where: { key } }).catch(() => {});
+        return null;
+      }
+
+      this.remember(key, row.payload, row.expiresAt.getTime());
+      return row.payload as T;
+    } catch (error) {
+      noteDatabaseFailure(error);
       return null;
     }
-
-    this.remember(key, row.payload, row.expiresAt.getTime());
-    return row.payload as T;
   }
 
   async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-    const payload = value as never;
 
-    await prisma.apiCache.upsert({
-      where: { key },
-      create: { key, payload, expiresAt },
-      update: { payload, expiresAt },
-    });
-
+    // The in-memory tier is written first, so caching keeps working even when
+    // the durable write fails.
     this.remember(key, value, expiresAt.getTime());
+    if (databaseUnavailable) return;
+
+    try {
+      const payload = value as never;
+      await prisma.apiCache.upsert({
+        where: { key },
+        create: { key, payload, expiresAt },
+        update: { payload, expiresAt },
+      });
+    } catch (error) {
+      noteDatabaseFailure(error);
+    }
   }
 
   async delete(key: string): Promise<void> {
     this.hot.delete(key);
+    if (databaseUnavailable) return;
     await prisma.apiCache.delete({ where: { key } }).catch(() => {});
   }
 
@@ -89,6 +131,15 @@ export class PostgresCreditLedger implements CreditLedger {
     }
   }
 
+  /**
+   * Spending counted in this process while the database is unreachable.
+   *
+   * Losing the durable ledger must not mean losing the budget: an unmetered
+   * client could spend the entire hackathon allowance in one bad loop. This
+   * keeps the cap enforced in memory, accepting that it resets on restart.
+   */
+  private fallbackSpend = 0;
+
   async tryConsume(cost: number, label: string, priority = false): Promise<boolean> {
     if (cost <= 0) return true;
 
@@ -96,29 +147,59 @@ export class PostgresCreditLedger implements CreditLedger {
     const ceiling = priority ? this.limit : this.limit - this.reserve;
     if (used + cost > ceiling) return false;
 
-    await prisma.creditUsage.create({ data: { endpoint: label, cost } });
-    this.cachedSpend = { value: used + cost, at: Date.now() };
-    return true;
+    if (databaseUnavailable) {
+      this.fallbackSpend += cost;
+      return true;
+    }
+
+    try {
+      await prisma.creditUsage.create({ data: { endpoint: label, cost } });
+      this.cachedSpend = { value: used + cost, at: Date.now() };
+      return true;
+    } catch (error) {
+      noteDatabaseFailure(error);
+      // Still count it: the call is about to be made either way.
+      this.fallbackSpend += cost;
+      return true;
+    }
   }
 
   async refund(cost: number): Promise<void> {
     if (cost <= 0) return;
-    // Recorded as a negative entry so the ledger stays append-only and the
-    // history of what was attempted is preserved.
-    await prisma.creditUsage.create({ data: { endpoint: "refund", cost: -cost } });
-    this.cachedSpend = null;
+
+    if (databaseUnavailable) {
+      this.fallbackSpend = Math.max(0, this.fallbackSpend - cost);
+      return;
+    }
+
+    try {
+      // Recorded as a negative entry so the ledger stays append-only and the
+      // history of what was attempted is preserved.
+      await prisma.creditUsage.create({ data: { endpoint: "refund", cost: -cost } });
+      this.cachedSpend = null;
+    } catch (error) {
+      noteDatabaseFailure(error);
+      this.fallbackSpend = Math.max(0, this.fallbackSpend - cost);
+    }
   }
 
   async spent(): Promise<number> {
+    if (databaseUnavailable) return this.fallbackSpend;
+
     const cached = this.cachedSpend;
     if (cached && Date.now() - cached.at < PostgresCreditLedger.SPEND_TTL_MS) {
       return cached.value;
     }
 
-    const result = await prisma.creditUsage.aggregate({ _sum: { cost: true } });
-    const value = result._sum.cost ?? 0;
-    this.cachedSpend = { value, at: Date.now() };
-    return value;
+    try {
+      const result = await prisma.creditUsage.aggregate({ _sum: { cost: true } });
+      const value = result._sum.cost ?? 0;
+      this.cachedSpend = { value, at: Date.now() };
+      return value;
+    } catch (error) {
+      noteDatabaseFailure(error);
+      return this.fallbackSpend;
+    }
   }
 
   async remaining(): Promise<number> {
@@ -126,20 +207,30 @@ export class PostgresCreditLedger implements CreditLedger {
   }
 
   async snapshot(): Promise<LedgerSnapshot> {
-    const grouped = await prisma.creditUsage.groupBy({
-      by: ["endpoint"],
-      _sum: { cost: true },
-    });
-
     const used = await this.spent();
-    return {
+    const base = {
       limit: this.limit,
       spent: used,
       remaining: Math.max(0, this.limit - used),
       reserve: this.reserve,
-      byLabel: Object.fromEntries(
-        grouped.map((g) => [g.endpoint, g._sum.cost ?? 0]),
-      ),
     };
+
+    if (databaseUnavailable) return { ...base, byLabel: {} };
+
+    try {
+      const grouped = await prisma.creditUsage.groupBy({
+        by: ["endpoint"],
+        _sum: { cost: true },
+      });
+      return {
+        ...base,
+        byLabel: Object.fromEntries(
+          grouped.map((g) => [g.endpoint, g._sum.cost ?? 0]),
+        ),
+      };
+    } catch (error) {
+      noteDatabaseFailure(error);
+      return { ...base, byLabel: {} };
+    }
   }
 }

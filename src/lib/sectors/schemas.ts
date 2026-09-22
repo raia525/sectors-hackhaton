@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { DailyBar, PeerProfile } from "@/lib/shadow/types";
+import type { ForeignFlowPoint, OwnershipSnapshot } from "@/lib/smartmoney/types";
 
 /**
  * Runtime validation for Sectors API responses.
@@ -250,3 +251,86 @@ export const newsResponseSchema = z.object({
 });
 
 export type NewsItem = z.infer<typeof newsItemSchema>;
+
+export const foreignFlowSchema = z.object({
+  symbol: z.string(),
+  data: z.array(
+    z.object({
+      date: z.string(),
+      net_foreign_inflow: numeric,
+      foreign_buy_idr: numeric,
+      foreign_sell_idr: numeric,
+      foreign_share: numeric,
+    }),
+  ),
+});
+
+/** Maps a foreign flow response, dropping days with no net figure. */
+export function parseForeignFlow(data: unknown): ForeignFlowPoint[] {
+  const parsed = foreignFlowSchema.safeParse(data);
+  if (!parsed.success) return [];
+
+  const out: ForeignFlowPoint[] = [];
+  for (const row of parsed.data.data) {
+    if (row.net_foreign_inflow === null) continue;
+    out.push({
+      date: row.date,
+      netInflow: row.net_foreign_inflow,
+      buyIdr: row.foreign_buy_idr,
+      sellIdr: row.foreign_sell_idr,
+      foreignShare: row.foreign_share,
+    });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const ownershipRowSchema = z
+  .object({
+    date: z.string(),
+    shares_number: numeric,
+    total_l: numeric,
+    total_f: numeric,
+    individual_l: numeric,
+    individual_f: numeric,
+    numbers_of_shareholders: numeric,
+  })
+  .passthrough();
+
+export const shareholdersSchema = z.object({
+  symbol: z.string(),
+  year: z.number().nullish(),
+  data: z.array(ownershipRowSchema),
+});
+
+/**
+ * Maps shareholder composition into ownership snapshots.
+ *
+ * Institutional holdings are derived as total minus individual, rather than by
+ * summing the named institutional categories. The API splits holdings across
+ * nine categories per locality, and summing them would silently under-count
+ * whenever the upstream adds a category we do not know about. Subtracting the
+ * one category we want to exclude is stable against that.
+ */
+export function parseOwnership(data: unknown): OwnershipSnapshot[] {
+  const parsed = shareholdersSchema.safeParse(data);
+  if (!parsed.success) return [];
+
+  const out: OwnershipSnapshot[] = [];
+  for (const row of parsed.data.data) {
+    const totalLocal = row.total_l ?? 0;
+    const totalForeign = row.total_f ?? 0;
+    const individualLocal = row.individual_l ?? 0;
+    const individualForeign = row.individual_f ?? 0;
+
+    out.push({
+      date: row.date,
+      sharesOutstanding: row.shares_number,
+      institutionalLocal: Math.max(0, totalLocal - individualLocal),
+      institutionalForeign: Math.max(0, totalForeign - individualForeign),
+      individualLocal,
+      individualForeign,
+      numberOfShareholders: row.numbers_of_shareholders,
+    });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}

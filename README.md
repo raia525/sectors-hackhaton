@@ -2,7 +2,7 @@
 
 **Every stock has a shadow. We detect when reality breaks away from it.**
 
-Sectors Hackathon 2026 — Track 3, Market Intelligence.
+Sectors Hackathon 2026, Track 3: Market Intelligence.
 
 ---
 
@@ -41,7 +41,9 @@ Decomposes any IDX stock's move into market, sector, and stock-specific componen
 Compares narrative tone against what the price actually did, and reports where they **disagree**. Four outcomes matter: coverage and price confirm each other, the narrative is running ahead of a price that has not moved, the price is moving before the story is public, or the two flatly contradict. Disagreement is the output, because that is where a user should slow down.
 
 **3. Smart money divergence**
-Detects when institutional and foreign positioning runs against price: accumulation into a falling stock, or distribution into a rally. Produces a conviction score for the strength of the disagreement.
+Detects when institutional and foreign positioning runs against price: accumulation into a falling stock, or distribution into a rally. Produces a conviction score for the strength of the disagreement, never for the odds of a future return.
+
+A scoping note, because it governs what the feature claims. The classic signal here is *insider* cluster-buying, from director and commissioner filings. The Sectors API does not publish those. It publishes daily net foreign flow and monthly ownership by investor category, so that is what this measures, and it says so. A test asserts the word "insider" never appears in its findings.
 
 **4. Stock comparison**
 Ranks up to four stocks by how far each has broken from its own twin, rather than by return. A large return that a stock's peers also produced says nothing about the company.
@@ -104,12 +106,14 @@ npx prisma migrate dev       # optional, see below
 npm run dev
 ```
 
-The app runs without a database, falling back to an in-memory cache and credit ledger. That fallback is for reviewing the analysis quickly; it resets the credit budget on restart, and the watchlist needs Postgres. Set `DATABASE_URL` and run the migration for the full feature set.
+The app runs without a database, falling back to an in-memory cache and credit ledger. It also falls back automatically if a configured database stops answering, warning once rather than failing every page. The budget stays enforced either way; it simply resets on restart. The watchlist needs Postgres, so set `DATABASE_URL` and run the migration for the full feature set.
+
+`/preview` renders every analysis panel from fixed synthetic data, so layout and number formatting can be reviewed without spending credits. It returns 404 in production.
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Development server |
-| `npm test` | Test suite, 153 tests |
+| `npm test` | Test suite, 185 tests |
 | `npm run test:coverage` | Coverage, 85% floor on the analysis modules |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |

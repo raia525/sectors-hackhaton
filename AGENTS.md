@@ -1,4 +1,4 @@
-# SHADOW IDX — working notes
+# SHADOW IDX, working notes
 
 Context for anyone, human or agent, changing this codebase.
 

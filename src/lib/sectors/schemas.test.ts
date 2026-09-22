@@ -4,6 +4,8 @@ import {
   extractPeerSymbols,
   newsResponseSchema,
   parseDailySeries,
+  parseForeignFlow,
+  parseOwnership,
   toPeerProfile,
 } from "./schemas";
 
@@ -239,5 +241,105 @@ describe("newsResponseSchema", () => {
 
   it("rejects a payload missing the results array", () => {
     expect(() => newsResponseSchema.parse({ nonsense: true })).toThrow();
+  });
+});
+
+describe("parseForeignFlow", () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    date: "2025-05-02",
+    net_foreign_inflow: 146_476_750_000,
+    foreign_buy_idr: 558_094_712_500,
+    foreign_sell_idr: 411_617_962_500,
+    foreign_share: 0.5875,
+    ...over,
+  });
+
+  it("maps a flow response onto the engine's shape", () => {
+    const points = parseForeignFlow({ symbol: "BBCA.JK", data: [row()] });
+    expect(points).toHaveLength(1);
+    expect(points[0].netInflow).toBe(146_476_750_000);
+    expect(points[0].foreignShare).toBe(0.5875);
+  });
+
+  it("drops days with no net figure rather than treating them as zero", () => {
+    // A null inflow means "not reported", and counting it as zero flow would
+    // dilute the intensity measure with days that carry no information.
+    const points = parseForeignFlow({
+      symbol: "BBCA",
+      data: [row(), row({ date: "2025-05-03", net_foreign_inflow: null })],
+    });
+    expect(points).toHaveLength(1);
+  });
+
+  it("sorts by date regardless of the order received", () => {
+    const points = parseForeignFlow({
+      symbol: "BBCA",
+      data: [row({ date: "2025-05-05" }), row({ date: "2025-05-01" })],
+    });
+    expect(points.map((p) => p.date)).toEqual(["2025-05-01", "2025-05-05"]);
+  });
+
+  it("returns empty for a malformed payload", () => {
+    expect(parseForeignFlow({ nonsense: true })).toEqual([]);
+    expect(parseForeignFlow(null)).toEqual([]);
+  });
+});
+
+describe("parseOwnership", () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    date: "2025-03-31",
+    shares_number: 1_000_000,
+    total_l: 600_000,
+    total_f: 400_000,
+    individual_l: 200_000,
+    individual_f: 50_000,
+    numbers_of_shareholders: 12_000,
+    ...over,
+  });
+
+  it("derives institutional holdings as total minus individual", () => {
+    // Summing the named institutional categories would under-count silently
+    // whenever the API adds a category we do not know about.
+    const snapshots = parseOwnership({ symbol: "BBCA", data: [row()] });
+    expect(snapshots[0].institutionalLocal).toBe(400_000);
+    expect(snapshots[0].institutionalForeign).toBe(350_000);
+  });
+
+  it("never reports a negative institutional holding", () => {
+    const snapshots = parseOwnership({
+      symbol: "BBCA",
+      data: [row({ total_l: 100_000, individual_l: 200_000 })],
+    });
+    expect(snapshots[0].institutionalLocal).toBe(0);
+  });
+
+  it("treats null categories as zero holdings", () => {
+    const snapshots = parseOwnership({
+      symbol: "BBCA",
+      data: [row({ total_f: null, individual_f: null })],
+    });
+    expect(snapshots[0].institutionalForeign).toBe(0);
+  });
+
+  it("preserves a null outstanding share count so the caller can skip the row", () => {
+    // Share-of-outstanding is meaningless without a denominator, and the
+    // engine filters these rows out rather than dividing by a guess.
+    const snapshots = parseOwnership({
+      symbol: "BBCA",
+      data: [row({ shares_number: null })],
+    });
+    expect(snapshots[0].sharesOutstanding).toBeNull();
+  });
+
+  it("sorts snapshots chronologically", () => {
+    const snapshots = parseOwnership({
+      symbol: "BBCA",
+      data: [row({ date: "2025-06-30" }), row({ date: "2025-01-31" })],
+    });
+    expect(snapshots.map((s) => s.date)).toEqual(["2025-01-31", "2025-06-30"]);
+  });
+
+  it("returns empty for a malformed payload", () => {
+    expect(parseOwnership({ nonsense: true })).toEqual([]);
   });
 });

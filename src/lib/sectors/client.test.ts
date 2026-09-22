@@ -109,6 +109,51 @@ describe("SectorsClient authentication and requests", () => {
     expect(url).toContain("limit=30");
   });
 
+  it("accepts IHSG for foreign flow, which is not a four letter ticker", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ symbol: "IHSG", data: [] }));
+    await makeClient(fetchMock as unknown as typeof fetch).foreignFlow("IHSG");
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain("/v2/foreign-flow/IHSG/");
+  });
+
+  it("still rejects an invalid ticker for foreign flow", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({}));
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await expect(client.foreignFlow("NOPE1")).rejects.toThrow(/Invalid IDX ticker/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("clamps the foreign flow window to the upstream maximum", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ symbol: "BBRI", data: [] }));
+    await makeClient(fetchMock as unknown as typeof fetch).foreignFlow("BBRI", {
+      start: "2020-01-01",
+      end: "2025-06-30",
+    });
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain("end=2025-06-30");
+    expect(url).toContain("start=2025-04-02");
+  });
+
+  it("passes the requested year through to shareholders", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ symbol: "BBRI", data: [] }));
+    await makeClient(fetchMock as unknown as typeof fetch).shareholders("BBRI", 2025);
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain("/v2/company/shareholders-composition/BBRI/");
+    expect(url).toContain("year=2025");
+  });
+
+  it("omits the year when none is given", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ symbol: "BBRI", data: [] }));
+    await makeClient(fetchMock as unknown as typeof fetch).shareholders("BBRI");
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).not.toContain("year=");
+  });
+
   it("surfaces upstream errors with their status", async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ detail: "nope" }, 429));
     const client = makeClient(fetchMock as unknown as typeof fetch);

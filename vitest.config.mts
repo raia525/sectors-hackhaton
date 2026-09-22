@@ -29,6 +29,7 @@ export default defineConfig({
         "src/lib/analysis/reality-check.ts",
         "src/lib/analysis/corporate-actions.ts",
         "src/lib/analysis/seasonality.ts",
+        "src/lib/analysis/key-stats.ts",
         "src/lib/notifications/rules.ts",
         "src/lib/notifications/email.ts",
         "src/lib/sectors/schemas.ts",

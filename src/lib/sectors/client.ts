@@ -252,6 +252,49 @@ export class SectorsClient {
     });
   }
 
+  /**
+   * Net daily foreign flow. Accepts IHSG as well as a company ticker, so the
+   * symbol guard is relaxed for that one case.
+   */
+  async foreignFlow<T = unknown>(
+    symbol: string,
+    range: { start?: string; end?: string } = {},
+    opts: { forceRefresh?: boolean } = {},
+  ): Promise<T> {
+    const upper = symbol.trim().toUpperCase().replace(/\.JK$/, "");
+    const ticker = upper === "IHSG" ? upper : this.requireSymbol(symbol);
+    const { start, end } = clampWindow(range.start, range.end);
+
+    return this.request<T>(endpoints.foreignFlow(ticker), {
+      ttl: TTL.dailyTransaction,
+      cost: 1,
+      query: { start, end },
+      forceRefresh: opts.forceRefresh,
+    });
+  }
+
+  /**
+   * Monthly shareholder composition by investor category.
+   *
+   * Data begins in 2021, so a year before that returns nothing and is not
+   * worth a credit; the caller is expected to pass a recent year.
+   */
+  async shareholders<T = unknown>(
+    symbol: string,
+    year?: number,
+    opts: { forceRefresh?: boolean } = {},
+  ): Promise<T> {
+    const ticker = this.requireSymbol(symbol);
+
+    return this.request<T>(endpoints.shareholders(ticker), {
+      // Monthly snapshots, so a long TTL is safe and saves repeat spending.
+      ttl: TTL.corporateActions,
+      cost: 1,
+      query: { year },
+      forceRefresh: opts.forceRefresh,
+    });
+  }
+
   async indexDaily<T = unknown>(
     index: string,
     range: { start?: string; end?: string } = {},
