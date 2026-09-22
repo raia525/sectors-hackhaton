@@ -1,0 +1,101 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+
+/**
+ * Ticker input.
+ *
+ * Validation happens here as well as on the server. The client check is purely
+ * for feedback speed; the server repeats it because a malformed ticker that
+ * reaches the API would waste a credit, and client validation can always be
+ * bypassed.
+ */
+
+const SUGGESTIONS = ["BBRI", "BBCA", "TLKM", "ASII", "GOTO"];
+
+export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
+  const router = useRouter();
+  const [value, setValue] = useState(initialSymbol?.toUpperCase() ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const submit = (raw: string) => {
+    const symbol = raw.trim().toUpperCase().replace(/\.JK$/, "");
+
+    if (!/^[A-Z]{4}$/.test(symbol)) {
+      setError("An IDX ticker is four letters, for example BBRI.");
+      return;
+    }
+
+    setError(null);
+    startTransition(() => {
+      router.push(`/?symbol=${symbol}`);
+    });
+  };
+
+  return (
+    <div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(value);
+        }}
+        className="flex flex-wrap gap-2"
+      >
+        <div className="min-w-[200px] flex-1">
+          <label htmlFor="symbol" className="sr-only">
+            IDX ticker
+          </label>
+          <input
+            id="symbol"
+            name="symbol"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value.toUpperCase());
+              if (error) setError(null);
+            }}
+            placeholder="Enter a ticker, for example BBRI"
+            maxLength={7}
+            autoComplete="off"
+            spellCheck={false}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "symbol-error" : undefined}
+            className="w-full rounded-[8px] border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded-[8px] bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {isPending ? "Analysing" : "Analyse"}
+        </button>
+      </form>
+
+      {error ? (
+        <p id="symbol-error" role="alert" className="mt-2 text-sm text-down">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-text-subtle">Try</span>
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => {
+              setValue(s);
+              submit(s);
+            }}
+            className="rounded-full border border-border px-2.5 py-0.5 text-xs text-text-muted transition-colors hover:border-border-strong hover:text-text"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
