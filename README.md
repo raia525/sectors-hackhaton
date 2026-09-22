@@ -43,8 +43,17 @@ Compares narrative tone against what the price actually did, and reports where t
 **3. Smart money divergence**
 Detects when institutional and foreign positioning runs against price: accumulation into a falling stock, or distribution into a rally. Produces a conviction score for the strength of the disagreement.
 
-**4. Comparison, summarisation, and notifications**
-Side-by-side stock comparison, summarised key stats with corporate-action effects on a held position, seasonality, and scheduled alerts on a chosen watchlist delivered in-app and by email.
+**4. Stock comparison**
+Ranks up to four stocks by how far each has broken from its own twin, rather than by return. A large return that a stock's peers also produced says nothing about the company.
+
+**5. Corporate actions against your position**
+Dividends and splits expressed as their effect on a holding: rupiah received, share count after the action, adjusted cost basis. A split states both halves of the adjustment, so it cannot be misread as creating value.
+
+**6. Seasonality with honest sample sizes**
+Month-by-month statistics that report how many years each figure rests on and refuse to call anything a tendency below four years of history.
+
+**7. Watchlist alerts**
+Per-stock thresholds in standard deviations, delivered in-app and by email. Alerts are rate limited and require the situation to have materially changed before repeating, because a notification people learn to ignore is worse than none.
 
 ## Honesty by construction
 
@@ -62,32 +71,54 @@ Financial tooling fails when it presents a confident number built on thin eviden
 ```
 src/
   lib/
-    sectors/      Sectors API client: typed, cached, credit-metered
-    shadow/       Synthetic twin construction and divergence attribution
-    smartmoney/   Institutional and foreign positioning analysis
-    analysis/     Reality check, narrative against price
-  app/            Next.js App Router pages and API routes
+    sectors/        API client, cache, credit ledger, response schemas
+    shadow/         Synthetic twin construction and divergence attribution
+    smartmoney/     Institutional and foreign positioning
+    analysis/       Reality check, corporate actions, seasonality, comparison
+    notifications/  Alert rules, digest rendering, scheduled dispatch
+  components/       UI, mostly server components
+  app/              App Router pages and route handlers
+prisma/             Database schema
 ```
+
+`src/lib/**` is pure and free of I/O wherever possible, which is what makes the analysis testable without a network or a database.
 
 **Credit discipline.** The hackathon grants 1,000 API credits total, and a single twin touches one report plus a daily series per peer. Overspending is a build-ending failure, so it is enforced in code rather than tracked by hand: every call passes through a cache, then in-flight de-duplication, then a ledger that can refuse the request. A reserve is held back so background jobs cannot starve the live demo, and failed calls are refunded.
 
-**Security.** The API key is server-only and never reaches the browser. Environment variables are schema-validated at startup so a missing secret fails loudly and by name. All third-party JSON is parsed through runtime schemas at the boundary, so an upstream shape change surfaces as a clear error rather than an `undefined` propagating into a statistical model.
+**Security.**
+
+- The API key is server-only. `server-only` imports make an accidental client import a build error rather than a leaked secret, and that guard caught a real leak during development.
+- Environment variables are schema-validated at startup, so a missing secret fails loudly and by name instead of becoming an `undefined` in an `Authorization` header.
+- All third-party JSON is parsed through runtime schemas at the boundary.
+- Passwords use scrypt with per-user salts. Session cookies are HMAC-signed, httpOnly, and sameSite lax.
+- Every secret comparison is timing-safe, including the scheduled job's bearer token.
+- Authentication failures are deliberately indistinguishable, so the sign-in form cannot be used to enumerate registered email addresses.
+- Email templates escape every interpolated value, since alert bodies carry API-sourced text.
 
 ## Running locally
 
 ```bash
 npm install
 cp .env.example .env.local   # then fill in SECTORS_API_KEY
+npx prisma migrate dev       # optional, see below
 npm run dev
 ```
+
+The app runs without a database, falling back to an in-memory cache and credit ledger. That fallback is for reviewing the analysis quickly; it resets the credit budget on restart, and the watchlist needs Postgres. Set `DATABASE_URL` and run the migration for the full feature set.
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Development server |
-| `npm test` | Test suite |
-| `npm run test:coverage` | Coverage report, 80% floor on `src/lib` |
+| `npm test` | Test suite, 153 tests |
+| `npm run test:coverage` | Coverage, 85% floor on the analysis modules |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
+
+### Scheduled alerts
+
+The alert job is a POST to `/api/cron/alerts` with `Authorization: Bearer $CRON_SECRET`. `vercel.json` schedules it for 10:00 UTC on weekdays, which is 17:00 WIB, an hour after the IDX close, so each run sees a settled closing price. Anywhere else, any scheduler that can send an authenticated POST will do.
+
+The endpoint rejects GET, so it cannot be triggered by a crawler or a pasted link.
 
 ## Data source
 

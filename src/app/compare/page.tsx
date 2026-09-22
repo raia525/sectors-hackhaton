@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { compareSymbols, parseSymbols } from "@/lib/analysis/compare";
-import { MAX_COMPARE } from "@/lib/analysis/constants";
+import { MAX_COMPARE, MIN_COMPARE } from "@/lib/analysis/constants";
 import { CompareForm } from "@/components/CompareForm";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { Caveats, EmptyState } from "@/components/ui/primitives";
@@ -38,7 +38,7 @@ export default async function ComparePage({
         {symbols.length === 0 ? (
           <EmptyState
             title="Add up to four tickers"
-            description={`Enter between two and ${MAX_COMPARE} IDX tickers to compare how far each has moved from its own twin.`}
+            description={`Enter ${MIN_COMPARE} to ${MAX_COMPARE} IDX tickers to compare how far each has moved from its own twin.`}
           />
         ) : (
           <Suspense key={symbols.join(",")} fallback={<CompareSkeleton count={symbols.length} />}>
