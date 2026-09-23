@@ -59,7 +59,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-[8px] bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
       >
         {pending ? "Working" : isSignUp ? "Create account" : "Sign in"}
       </button>
@@ -103,7 +103,7 @@ function Field({
         type={type}
         autoComplete={autoComplete}
         required={required}
-        className="mt-1 w-full rounded-[8px] border border-border bg-surface px-3.5 py-2.5 text-sm text-text focus:border-accent focus:outline-none"
+        className="mt-1 w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text focus:border-accent focus:outline-none"
       />
     </label>
   );

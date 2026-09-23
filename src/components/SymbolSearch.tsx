@@ -61,14 +61,14 @@ export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
             spellCheck={false}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? "symbol-error" : undefined}
-            className="w-full rounded-[8px] border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+            className="w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
           />
         </div>
 
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-[8px] bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+          className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
         >
           {isPending ? "Analysing" : "Analyse"}
         </button>

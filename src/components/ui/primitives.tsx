@@ -18,7 +18,7 @@ export function Card({
 }) {
   return (
     <section
-      className={`rounded-[10px] border border-border bg-surface p-5 ${className}`}
+      className={`rounded-[var(--radius)] border border-border bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}
     >
       {children}
     </section>
@@ -122,18 +122,20 @@ export function Badge({
   children: ReactNode;
   tone?: BadgeTone;
 }) {
+  // Solid, tinted backgrounds rather than outline-only: a status pill reads
+  // faster as a filled shape than as coloured text in a thin border.
   const tones: Record<BadgeTone, string> = {
-    extreme: "border-signal-extreme/40 text-signal-extreme",
-    significant: "border-signal-significant/40 text-signal-significant",
-    moderate: "border-signal-moderate/40 text-signal-moderate",
-    normal: "border-signal-normal/40 text-signal-normal",
-    neutral: "border-border-strong text-text-muted",
-    accent: "border-accent/40 text-accent",
+    extreme: "bg-signal-extreme/12 text-signal-extreme",
+    significant: "bg-signal-significant/12 text-signal-significant",
+    moderate: "bg-signal-moderate/14 text-signal-moderate",
+    normal: "bg-signal-normal/12 text-signal-normal",
+    neutral: "bg-surface-raised text-text-muted",
+    accent: "bg-accent-soft text-accent",
   };
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${tones[tone]}`}
     >
       {children}
     </span>

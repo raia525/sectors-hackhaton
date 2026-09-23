@@ -38,6 +38,18 @@ const schema = z.object({
   /** Credits held back so background jobs cannot starve the live demo. */
   SECTORS_CREDIT_RESERVE: z.coerce.number().int().nonnegative().default(150),
 
+  /**
+   * Stretches the short, price-sensitive cache windows. 1 is normal; raising it
+   * during demo rehearsal stops the same prices being re-bought every fifteen
+   * minutes. Read directly by the client, declared here so it is validated and
+   * documented rather than an undeclared variable.
+   */
+  SECTORS_CACHE_BOOST: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.coerce.number().min(1).max(96).default(1),
+  ),
+
   /** Shared secret for the scheduled notification endpoint. */
   CRON_SECRET: z.string().min(16, "CRON_SECRET must be at least 16 characters."),
 

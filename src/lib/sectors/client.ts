@@ -55,16 +55,38 @@ interface RequestOptions {
   forceRefresh?: boolean;
 }
 
+/**
+ * Multiplier applied to the short, price-sensitive TTLs.
+ *
+ * Rehearsing a demo re-buys the same prices every fifteen minutes, which is
+ * pure waste against a fixed credit budget when the figures on screen do not
+ * need to be live. Setting SECTORS_CACHE_BOOST stretches those windows without
+ * touching the code.
+ *
+ * It deliberately does not affect reference data, which is already cached for
+ * hours, and the default of 1 leaves normal behaviour unchanged.
+ */
+function cacheBoost(): number {
+  const raw = Number(process.env.SECTORS_CACHE_BOOST ?? 1);
+  return Number.isFinite(raw) && raw >= 1 ? Math.min(raw, 96) : 1;
+}
+
 /** TTLs chosen so intraday views stay fresh while reference data is not re-bought. */
 export const TTL = {
   /** Prices move all session; short enough to feel live, long enough to batch. */
-  dailyTransaction: 15 * 60,
+  get dailyTransaction() {
+    return 15 * 60 * cacheBoost();
+  },
   /** Fundamentals change quarterly. */
   companyReport: 24 * 60 * 60,
   /** Corporate actions are announced, then fixed. */
   corporateActions: 12 * 60 * 60,
-  news: 30 * 60,
-  index: 15 * 60,
+  get news() {
+    return 30 * 60 * cacheBoost();
+  },
+  get index() {
+    return 15 * 60 * cacheBoost();
+  },
   screener: 24 * 60 * 60,
 } as const;
 

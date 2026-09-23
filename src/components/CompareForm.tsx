@@ -81,14 +81,14 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
             spellCheck={false}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? "compare-error" : undefined}
-            className="w-full rounded-[8px] border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+            className="w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
           />
         </div>
 
         <button
           type="button"
           onClick={add}
-          className="rounded-[8px] border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
+          className="rounded-full border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
         >
           Add
         </button>
@@ -97,7 +97,7 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
           type="button"
           onClick={run}
           disabled={isPending || symbols.length < MIN_COMPARE}
-          className="rounded-[8px] bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           {isPending ? "Comparing" : "Compare"}
         </button>

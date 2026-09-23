@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeScript } from "@/components/ThemeScript";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,6 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <ThemeScript />
+      </head>
       <body className="flex min-h-full flex-col bg-bg">
         <a
           href="#main"
@@ -39,31 +44,42 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
 
-        <header className="border-b border-border">
+        <header className="border-b border-border bg-surface">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-4 py-3.5">
-            <Link href="/" className="flex items-baseline gap-2">
-              <span className="text-[15px] font-semibold tracking-tight text-text">
-                SHADOW
+            <Link href="/" className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-accent text-[13px] font-bold text-accent-contrast"
+              >
+                S
               </span>
-              <span className="text-[15px] font-light tracking-tight text-text-muted">
-                IDX
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[15px] font-semibold tracking-tight text-text">
+                  SHADOW
+                </span>
+                <span className="text-[15px] font-light tracking-tight text-text-muted">
+                  IDX
+                </span>
               </span>
             </Link>
 
-            <nav aria-label="Main">
-              <ul className="flex items-center gap-1">
-                {NAV.map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="rounded-md px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+            <div className="flex items-center gap-1">
+              <nav aria-label="Main">
+                <ul className="flex items-center gap-1">
+                  {NAV.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className="rounded-full px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 

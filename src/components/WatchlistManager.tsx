@@ -47,13 +47,13 @@ export function WatchlistManager({ items }: { items: Item[] }) {
               placeholder="Add a ticker"
               autoComplete="off"
               spellCheck={false}
-              className="w-full rounded-[8px] border border-border bg-surface-raised px-3 py-2 text-sm uppercase text-text placeholder:normal-case placeholder:text-text-subtle focus:border-accent focus:outline-none"
+              className="w-full rounded-full border border-border bg-surface-raised px-3 py-2 text-sm uppercase text-text placeholder:normal-case placeholder:text-text-subtle focus:border-accent focus:outline-none"
             />
           </div>
           <button
             type="submit"
             disabled={addPending}
-            className="rounded-[8px] bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
           >
             {addPending ? "Adding" : "Add"}
           </button>
@@ -83,7 +83,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
                   min={0}
                   step={1}
                   placeholder="10"
-                  className="mt-1 w-full rounded-[8px] border border-border bg-surface-raised px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
+                  className="mt-1 w-full rounded-full border border-border bg-surface-raised px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
                 />
               </label>
               <label className="block">
@@ -96,7 +96,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
                   min={0}
                   step="any"
                   placeholder="4500"
-                  className="mt-1 w-full rounded-[8px] border border-border bg-surface-raised px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
+                  className="mt-1 w-full rounded-full border border-border bg-surface-raised px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
                 />
               </label>
               <p className="col-span-2 text-xs text-text-subtle">
@@ -136,7 +136,7 @@ function WatchlistRow({ item }: { item: Item }) {
   );
 
   return (
-    <li className="rounded-[8px] border border-border bg-surface-raised p-3">
+    <li className="rounded-full border border-border bg-surface-raised p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <Link

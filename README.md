@@ -102,9 +102,13 @@ prisma/             Database schema
 ```bash
 npm install
 cp .env.example .env.local   # then fill in SECTORS_API_KEY
-npx prisma migrate dev       # optional, see below
+npm run db:migrate           # optional, see below
 npm run dev
 ```
+
+The `db:` scripts run Prisma through `dotenv-cli` against `.env.local`. Prisma's
+CLI otherwise reads only `.env`, which would mean keeping the same connection
+string in two files and watching them drift apart.
 
 The app runs without a database, falling back to an in-memory cache and credit ledger. It also falls back automatically if a configured database stops answering, warning once rather than failing every page. The budget stays enforced either way; it simply resets on restart. The watchlist needs Postgres, so set `DATABASE_URL` and run the migration for the full feature set.
 
@@ -125,6 +129,8 @@ Without a complete set, alerts are still saved in the app and nothing is mailed.
 | `npm run test:coverage` | Coverage, 85% floor on the analysis modules |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
+| `npm run db:migrate` | Create or update database tables |
+| `npm run db:studio` | Browse the database in a GUI |
 
 ### Scheduled alerts
 

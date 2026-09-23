@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clampWindow,
   CreditExhaustedError,
   SectorsApiError,
   SectorsClient,
+  TTL,
 } from "./client";
 import { MemoryCache, NullCache } from "./cache";
 import { MemoryCreditLedger, UnlimitedCreditLedger } from "./credits";
@@ -170,6 +171,42 @@ describe("SectorsClient authentication and requests", () => {
           ledger: new UnlimitedCreditLedger(),
         }),
     ).toThrow(/SECTORS_API_KEY/);
+  });
+});
+
+describe("cache TTL boost", () => {
+  const original = process.env.SECTORS_CACHE_BOOST;
+  afterEach(() => {
+    if (original === undefined) delete process.env.SECTORS_CACHE_BOOST;
+    else process.env.SECTORS_CACHE_BOOST = original;
+  });
+
+  it("leaves the windows unchanged by default", () => {
+    delete process.env.SECTORS_CACHE_BOOST;
+    expect(TTL.dailyTransaction).toBe(15 * 60);
+    expect(TTL.news).toBe(30 * 60);
+  });
+
+  it("stretches only the price sensitive windows", () => {
+    process.env.SECTORS_CACHE_BOOST = "24";
+    expect(TTL.dailyTransaction).toBe(15 * 60 * 24);
+    expect(TTL.index).toBe(15 * 60 * 24);
+    // Reference data is already cached for hours and must not be extended
+    // further, or a quarterly update could be missed for days.
+    expect(TTL.companyReport).toBe(24 * 60 * 60);
+    expect(TTL.corporateActions).toBe(12 * 60 * 60);
+  });
+
+  it("ignores values that would shorten the window or make no sense", () => {
+    for (const bad of ["0", "-5", "abc", ""]) {
+      process.env.SECTORS_CACHE_BOOST = bad;
+      expect(TTL.dailyTransaction).toBe(15 * 60);
+    }
+  });
+
+  it("caps the boost so data cannot be cached indefinitely", () => {
+    process.env.SECTORS_CACHE_BOOST = "100000";
+    expect(TTL.dailyTransaction).toBe(15 * 60 * 96);
   });
 });
 

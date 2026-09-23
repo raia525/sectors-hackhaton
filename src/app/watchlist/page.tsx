@@ -33,13 +33,13 @@ export default async function WatchlistPage() {
           <div className="mt-4 flex justify-center gap-3">
             <Link
               href="/signin"
-              className="rounded-[8px] bg-accent px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
             >
               Sign in
             </Link>
             <Link
               href="/signup"
-              className="rounded-[8px] border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
+              className="rounded-full border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
             >
               Create an account
             </Link>
