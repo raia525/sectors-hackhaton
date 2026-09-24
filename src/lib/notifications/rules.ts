@@ -1,6 +1,8 @@
 import type { ShadowAnalysis } from "@/lib/shadow/types";
 import type { RealityCheck } from "@/lib/analysis/reality-check";
 import type { CorporateActionItem } from "@/lib/analysis/corporate-actions";
+import { msg, type Message } from "@/lib/i18n/message";
+import { formatIdr } from "@/lib/format";
 
 /**
  * Decides what is worth interrupting someone about.
@@ -16,6 +18,11 @@ import type { CorporateActionItem } from "@/lib/analysis/corporate-actions";
  *    alert rather than seven.
  * 3. A materiality check, so a repeat alert only fires if the situation has
  *    meaningfully changed since the last one.
+ *
+ * Titles and bodies are Message descriptors rather than finished strings: this
+ * module runs inside a scheduled job with no active browser session, so the
+ * caller resolves each one in the recipient's stored locale (see
+ * dispatch.ts) rather than the module guessing a language.
  */
 
 export type AlertKind = "DIVERGENCE" | "CORPORATE_ACTION" | "SMART_MONEY";
@@ -23,9 +30,9 @@ export type AlertKind = "DIVERGENCE" | "CORPORATE_ACTION" | "SMART_MONEY";
 export interface Alert {
   kind: AlertKind;
   symbol: string;
-  title: string;
-  /** Short summary, written to be readable in an email preview line. */
-  body: string;
+  title: Message;
+  /** Body parts, written to read naturally joined with spaces. */
+  body: Message[];
   /** Strength of the signal, used to order a digest. */
   priority: number;
   payload: Record<string, unknown>;
@@ -83,13 +90,18 @@ export function evaluateDivergenceAlert(
   }
 
   const direction = shadow.attribution.idiosyncratic >= 0 ? "above" : "below";
+  const directionKey = direction === "above" ? "alert.direction.above" : "alert.direction.below";
   const magnitude = (Math.abs(shadow.attribution.idiosyncratic) * 100).toFixed(1);
 
   return {
     kind: "DIVERGENCE",
     symbol: shadow.symbol,
-    title: `${shadow.symbol} is trading ${magnitude}% ${direction} its twin`,
-    body: buildDivergenceBody(shadow, reality, direction, magnitude),
+    title: msg("alert.divergenceTitle", {
+      symbol: shadow.symbol,
+      magnitude,
+      direction: msg(directionKey),
+    }),
+    body: buildDivergenceBody(shadow, reality, directionKey, magnitude),
     priority: Math.abs(z),
     payload: {
       zScore: z,
@@ -104,40 +116,40 @@ export function evaluateDivergenceAlert(
 function buildDivergenceBody(
   shadow: ShadowAnalysis,
   reality: RealityCheck,
-  direction: string,
+  directionKey: "alert.direction.above" | "alert.direction.below",
   magnitude: string,
-): string {
-  const parts: string[] = [];
+): Message[] {
+  const parts: Message[] = [];
 
   parts.push(
-    `${shadow.symbol} has moved ${magnitude}% ${direction} what its ${shadow.constituents.length} closest peers would predict, a divergence of ${shadow.zScore.toFixed(2)} standard deviations.`,
+    msg("alert.divergenceSummary", {
+      symbol: shadow.symbol,
+      magnitude,
+      direction: msg(directionKey),
+      peerCount: shadow.constituents.length,
+      zScore: shadow.zScore.toFixed(2),
+    }),
   );
 
   // The reality check is the most useful line in an alert, because it says
   // whether anyone has publicly explained the move yet.
-  switch (reality.verdict) {
-    case "price_ahead_of_narrative":
-      parts.push("No news explains this yet. The price is moving before the story.");
-      break;
-    case "contradiction":
-      parts.push("Coverage points the other way, so the story and the tape disagree.");
-      break;
-    case "confirmed":
-      parts.push("Recent coverage points the same way, so the two signals agree.");
-      break;
-    case "narrative_ahead_of_price":
-      parts.push("Coverage has been active but the price had not reflected it until now.");
-      break;
-    case "insufficient_evidence":
-      parts.push("There is little coverage to corroborate the move either way.");
-      break;
-  }
+  const realityKey: Record<RealityCheck["verdict"], Message["key"]> = {
+    price_ahead_of_narrative: "alert.reality.priceAhead",
+    contradiction: "alert.reality.contradiction",
+    confirmed: "alert.reality.confirmed",
+    narrative_ahead_of_price: "alert.reality.narrativeAhead",
+    insufficient_evidence: "alert.reality.insufficient",
+  };
+  parts.push(msg(realityKey[reality.verdict]));
 
   parts.push(
-    `Twin fit ${(shadow.fitQuality * 100).toFixed(0)}%, confidence ${reality.confidence}.`,
+    msg("alert.fitAndConfidence", {
+      fitPct: (shadow.fitQuality * 100).toFixed(0),
+      confidence: reality.confidence,
+    }),
   );
 
-  return parts.join(" ");
+  return parts;
 }
 
 export function evaluateCorporateActionAlerts(
@@ -158,7 +170,11 @@ export function evaluateCorporateActionAlerts(
     .map((action) => ({
       kind: "CORPORATE_ACTION" as const,
       symbol: state.symbol,
-      title: `${state.symbol}: ${action.summary} on ${action.date}`,
+      title: msg("alert.actionTitle", {
+        symbol: state.symbol,
+        summary: action.summary,
+        date: action.date,
+      }),
       body: buildActionBody(action),
       // Below divergence alerts: a scheduled event is known in advance, while
       // an unexplained price move is new information.
@@ -167,22 +183,25 @@ export function evaluateCorporateActionAlerts(
     }));
 }
 
-function buildActionBody(action: CorporateActionItem): string {
-  const parts: string[] = [action.summary];
+function buildActionBody(action: CorporateActionItem): Message[] {
+  const parts: Message[] = [action.summary];
 
   if (action.effect?.cashIdr) {
     parts.push(
-      `Your position is due approximately Rp ${Math.round(action.effect.cashIdr).toLocaleString("id-ID")} before tax.`,
+      msg("alert.actionDueCash", { amount: formatIdr(Math.round(action.effect.cashIdr)) }),
     );
   }
   if (action.effect?.sharesAfter && action.effect.adjustedAvgPrice) {
     parts.push(
-      `Your holding becomes ${action.effect.sharesAfter.toLocaleString("id-ID")} shares at an adjusted cost of Rp ${Math.round(action.effect.adjustedAvgPrice).toLocaleString("id-ID")} each. The total value does not change.`,
+      msg("alert.actionBecomesShares", {
+        shares: action.effect.sharesAfter.toLocaleString("id-ID"),
+        price: formatIdr(Math.round(action.effect.adjustedAvgPrice)),
+      }),
     );
   }
   if (action.detail) parts.push(action.detail);
 
-  return parts.join(" ");
+  return parts;
 }
 
 /**

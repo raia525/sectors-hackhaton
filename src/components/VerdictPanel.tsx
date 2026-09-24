@@ -1,6 +1,10 @@
+"use client";
+
 import type { DivergenceVerdict, ShadowAnalysis } from "@/lib/shadow/types";
 import type { RealityCheck } from "@/lib/analysis/reality-check";
 import { Badge, formatPercent, formatSigned, type BadgeTone } from "./ui/primitives";
+import { useTranslation } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * The headline read on a stock: how far it has broken from its twin, and
@@ -13,46 +17,56 @@ import { Badge, formatPercent, formatSigned, type BadgeTone } from "./ui/primiti
 
 const VERDICT_COPY: Record<
   DivergenceVerdict,
-  { label: string; tone: BadgeTone; meaning: string }
+  { labelKey: TranslationKey; tone: BadgeTone; meaningKey: TranslationKey }
 > = {
   extreme: {
-    label: "Extreme divergence",
+    labelKey: "verdict.divergence.extreme",
     tone: "extreme",
-    meaning:
-      "The stock has broken from its twin by more than three standard deviations. Moves this size are rare and usually have a specific cause.",
+    meaningKey: "verdict.divergence.extreme.meaning",
   },
   significant: {
-    label: "Significant divergence",
+    labelKey: "verdict.divergence.significant",
     tone: "significant",
-    meaning:
-      "The stock is moving well beyond what its peers explain. Worth understanding before acting on the price.",
+    meaningKey: "verdict.divergence.significant.meaning",
   },
   moderate: {
-    label: "Moderate divergence",
+    labelKey: "verdict.divergence.moderate",
     tone: "moderate",
-    meaning:
-      "There is a gap between the stock and its twin, but not beyond its usual range.",
+    meaningKey: "verdict.divergence.moderate.meaning",
   },
   normal: {
-    label: "Within normal range",
+    labelKey: "verdict.divergence.normal",
     tone: "normal",
-    meaning:
-      "The stock is behaving roughly as its peers would predict. Nothing here needs explaining.",
+    meaningKey: "verdict.divergence.normal.meaning",
   },
   aligned: {
-    label: "Tracking its twin",
+    labelKey: "verdict.divergence.aligned",
     tone: "normal",
-    meaning:
-      "The stock is doing what comparable companies are doing. Its move is not its own.",
+    meaningKey: "verdict.divergence.aligned.meaning",
   },
 };
 
-const REALITY_COPY: Record<RealityCheck["verdict"], { label: string; tone: BadgeTone }> = {
-  confirmed: { label: "News and price agree", tone: "normal" },
-  contradiction: { label: "News contradicts price", tone: "extreme" },
-  narrative_ahead_of_price: { label: "Story ahead of the tape", tone: "significant" },
-  price_ahead_of_narrative: { label: "Price ahead of the story", tone: "significant" },
-  insufficient_evidence: { label: "Not enough evidence", tone: "neutral" },
+const REALITY_COPY: Record<
+  RealityCheck["verdict"],
+  { labelKey: TranslationKey; tone: BadgeTone }
+> = {
+  confirmed: { labelKey: "verdict.reality.confirmed", tone: "normal" },
+  contradiction: { labelKey: "verdict.reality.contradiction", tone: "extreme" },
+  narrative_ahead_of_price: {
+    labelKey: "verdict.reality.narrativeAhead",
+    tone: "significant",
+  },
+  price_ahead_of_narrative: {
+    labelKey: "verdict.reality.priceAhead",
+    tone: "significant",
+  },
+  insufficient_evidence: { labelKey: "verdict.reality.insufficient", tone: "neutral" },
+};
+
+const CONFIDENCE_KEY: Record<RealityCheck["confidence"], TranslationKey> = {
+  high: "verdict.confidence.high",
+  moderate: "verdict.confidence.moderate",
+  low: "verdict.confidence.low",
 };
 
 export function VerdictPanel({
@@ -62,38 +76,47 @@ export function VerdictPanel({
   shadow: ShadowAnalysis;
   reality: RealityCheck;
 }) {
+  const { t, tm } = useTranslation();
   const verdict = VERDICT_COPY[shadow.verdict];
   const realityVerdict = REALITY_COPY[reality.verdict];
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={verdict.tone}>{verdict.label}</Badge>
-        <Badge tone={realityVerdict.tone}>{realityVerdict.label}</Badge>
-        <Badge tone="neutral">{reality.confidence} confidence</Badge>
+        <Badge tone={verdict.tone}>{t(verdict.labelKey)}</Badge>
+        <Badge tone={realityVerdict.tone}>{t(realityVerdict.labelKey)}</Badge>
+        <Badge tone="neutral">
+          {t("verdict.confidence", { level: t(CONFIDENCE_KEY[reality.confidence]) })}
+        </Badge>
       </div>
 
-      <p className="text-[15px] leading-relaxed text-text">{verdict.meaning}</p>
+      <p className="text-[15px] leading-relaxed text-text">{t(verdict.meaningKey)}</p>
 
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Figure
-          label="Stock specific"
+          label={t("verdict.stat.stockSpecific")}
           value={formatPercent(shadow.attribution.idiosyncratic)}
           tone={shadow.attribution.idiosyncratic >= 0 ? "up" : "down"}
         />
-        <Figure label="Divergence z score" value={formatSigned(shadow.zScore)} />
         <Figure
-          label="Twin fit"
-          value={`${(shadow.fitQuality * 100).toFixed(0)}%`}
-          hint={shadow.fitQuality < 0.3 ? "weak" : undefined}
+          label={t("verdict.stat.zScore")}
+          value={formatSigned(shadow.zScore)}
         />
-        <Figure label="Peers used" value={String(shadow.constituents.length)} />
+        <Figure
+          label={t("verdict.stat.twinFit")}
+          value={`${(shadow.fitQuality * 100).toFixed(0)}%`}
+          hint={shadow.fitQuality < 0.3 ? t("verdict.stat.weak") : undefined}
+        />
+        <Figure
+          label={t("verdict.stat.peersUsed")}
+          value={String(shadow.constituents.length)}
+        />
       </dl>
 
       <ul className="space-y-2">
         {reality.findings.map((finding, i) => (
           <li key={i} className="text-sm leading-relaxed text-text-muted">
-            {finding}
+            {tm(finding)}
           </li>
         ))}
       </ul>

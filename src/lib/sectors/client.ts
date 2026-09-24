@@ -317,6 +317,37 @@ export class SectorsClient {
     });
   }
 
+  /**
+   * Lists companies via structured filters.
+   *
+   * Deliberately exposes only `where`/`order_by`/`limit`/`offset`, never the
+   * natural language `q` parameter: a structured query costs 1 credit while a
+   * natural language one costs 3, and this method exists to page through the
+   * full ticker directory as cheaply as possible.
+   */
+  async screener<T = unknown>(
+    params: {
+      where?: string;
+      orderBy?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+    opts: { forceRefresh?: boolean } = {},
+  ): Promise<T> {
+    return this.request<T>(endpoints.screener(), {
+      ttl: TTL.screener,
+      cost: 1,
+      query: {
+        where: params.where,
+        order_by: params.orderBy,
+        // Upstream accepts up to 200; clamp so a bad caller cannot trigger a 400.
+        limit: params.limit ? Math.min(Math.max(params.limit, 1), 200) : undefined,
+        offset: params.offset,
+      },
+      forceRefresh: opts.forceRefresh,
+    });
+  }
+
   async indexDaily<T = unknown>(
     index: string,
     range: { start?: string; end?: string } = {},

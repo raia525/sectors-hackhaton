@@ -56,7 +56,7 @@ describe("analyzeSeasonality", () => {
 
     expect(result.months.every((m) => !m.reliable)).toBe(true);
     expect(result.best).toBeNull();
-    expect(result.caveats.join(" ")).toMatch(/No month has at least/);
+    expect(result.caveats.map((c) => c.key)).toContain("seasonality.noneReliable");
   });
 
   it("reports the sample size for every month", () => {
@@ -75,12 +75,12 @@ describe("analyzeSeasonality", () => {
 
     const march = result.months.find((m) => m.month === 3)!;
     expect(march.volatility).toBeGreaterThan(Math.abs(march.averageReturn));
-    expect(result.caveats.join(" ")).toMatch(/spread of outcomes/);
+    expect(result.caveats.map((c) => c.key)).toContain("seasonality.inconsistent");
   });
 
   it("always states that seasonality is not predictive", () => {
     const result = analyzeSeasonality(barsAcrossYears([2024], () => 0.01));
-    expect(result.caveats[0]).toMatch(/no information about what any future month will do/);
+    expect(result.caveats[0].key).toBe("seasonality.notPredictive");
   });
 
   it("reports both mean and median so a single outlier year is visible", () => {

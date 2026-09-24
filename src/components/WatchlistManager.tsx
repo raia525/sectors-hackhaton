@@ -8,6 +8,8 @@ import {
   updateThreshold,
   type ActionState,
 } from "@/app/watchlist/actions";
+import { SymbolCombobox, type DirectoryMatch } from "./SymbolCombobox";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
  * Watchlist management.
@@ -28,8 +30,10 @@ interface Item {
 const INITIAL: ActionState = {};
 
 export function WatchlistManager({ items }: { items: Item[] }) {
+  const { t } = useTranslation();
   const [addState, addAction, addPending] = useActionState(addToWatchlist, INITIAL);
   const [showPosition, setShowPosition] = useState(false);
+  const [symbolValue, setSymbolValue] = useState("");
 
   return (
     <div className="space-y-6">
@@ -37,25 +41,26 @@ export function WatchlistManager({ items }: { items: Item[] }) {
         <div className="flex flex-wrap gap-2">
           <div className="min-w-[140px] flex-1">
             <label htmlFor="watch-symbol" className="sr-only">
-              Ticker
+              {t("watchlist.tickerLabel")}
             </label>
-            <input
+            <SymbolCombobox
               id="watch-symbol"
-              name="symbol"
-              required
-              maxLength={7}
-              placeholder="Add a ticker"
-              autoComplete="off"
-              spellCheck={false}
-              className="w-full rounded-full border border-border bg-surface-raised px-3 py-2 text-sm uppercase text-text placeholder:normal-case placeholder:text-text-subtle focus:border-accent focus:outline-none"
+              value={symbolValue}
+              onChange={setSymbolValue}
+              onSelect={(match: DirectoryMatch) => setSymbolValue(match.symbol)}
+              placeholder={t("watchlist.addTickerPlaceholder")}
+              inputClassName="w-full rounded-full border border-border bg-surface-raised px-3 py-2 text-sm uppercase text-text placeholder:normal-case placeholder:text-text-subtle focus:border-accent focus:outline-none"
             />
+            {/* A plain input mirrors the combobox's value into the form
+                submission, since the combobox itself has no name attribute. */}
+            <input type="hidden" name="symbol" value={symbolValue} />
           </div>
           <button
             type="submit"
             disabled={addPending}
             className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
           >
-            {addPending ? "Adding" : "Add"}
+            {addPending ? t("watchlist.adding") : t("watchlist.add")}
           </button>
         </div>
 
@@ -68,14 +73,14 @@ export function WatchlistManager({ items }: { items: Item[] }) {
             aria-expanded={showPosition}
             className="text-xs text-text-subtle underline-offset-2 hover:text-text-muted hover:underline"
           >
-            {showPosition ? "Hide position" : "Add your position, optional"}
+            {showPosition ? t("watchlist.hidePosition") : t("watchlist.showPosition")}
           </button>
 
           {showPosition ? (
             <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="text-[11px] uppercase tracking-wide text-text-subtle">
-                  Lots
+                  {t("watchlist.lots")}
                 </span>
                 <input
                   name="lots"
@@ -88,7 +93,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
               </label>
               <label className="block">
                 <span className="text-[11px] uppercase tracking-wide text-text-subtle">
-                  Average price
+                  {t("watchlist.avgPrice")}
                 </span>
                 <input
                   name="avgPrice"
@@ -100,8 +105,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
                 />
               </label>
               <p className="col-span-2 text-xs text-text-subtle">
-                A position lets corporate actions be shown in rupiah rather than
-                as ratios. One lot is 100 shares.
+                {t("watchlist.positionHint")}
               </p>
             </div>
           ) : null}
@@ -111,9 +115,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
       </form>
 
       {items.length === 0 ? (
-        <p className="text-sm text-text-muted">
-          No stocks tracked yet. Add one above to start receiving alerts.
-        </p>
+        <p className="text-sm text-text-muted">{t("watchlist.empty")}</p>
       ) : (
         <ul className="space-y-3">
           {items.map((item) => (
@@ -126,6 +128,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
 }
 
 function WatchlistRow({ item }: { item: Item }) {
+  const { t } = useTranslation();
   const [removeState, removeAction, removePending] = useActionState(
     removeFromWatchlist,
     INITIAL,
@@ -136,7 +139,7 @@ function WatchlistRow({ item }: { item: Item }) {
   );
 
   return (
-    <li className="rounded-full border border-border bg-surface-raised p-3">
+    <li className="rounded-[var(--radius-sm)] border border-border bg-surface-raised p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <Link
@@ -147,13 +150,15 @@ function WatchlistRow({ item }: { item: Item }) {
           </Link>
           {item.holding ? (
             <p className="text-xs text-text-subtle">
-              {item.holding.lots} lots at Rp{" "}
-              {item.holding.avgPrice.toLocaleString("id-ID")}
+              {t("watchlist.lotsAt", {
+                lots: item.holding.lots,
+                price: item.holding.avgPrice.toLocaleString("id-ID"),
+              })}
             </p>
           ) : null}
           {item.lastNotifiedAt ? (
             <p className="text-xs text-text-subtle">
-              Last alert {item.lastNotifiedAt.slice(0, 10)}
+              {t("watchlist.lastAlert", { date: item.lastNotifiedAt.slice(0, 10) })}
             </p>
           ) : null}
         </div>
@@ -165,7 +170,7 @@ function WatchlistRow({ item }: { item: Item }) {
             disabled={removePending}
             className="text-xs text-text-subtle transition-colors hover:text-down disabled:opacity-50"
           >
-            Remove
+            {t("watchlist.remove")}
           </button>
         </form>
       </div>
@@ -182,7 +187,7 @@ function WatchlistRow({ item }: { item: Item }) {
           disabled={updatePending}
           className="mt-1.5 text-xs text-accent hover:underline disabled:opacity-50"
         >
-          {updatePending ? "Saving" : "Save threshold"}
+          {updatePending ? t("watchlist.saving") : t("watchlist.saveThreshold")}
         </button>
       </form>
 
@@ -207,18 +212,19 @@ function ThresholdField({
   defaultValue: number;
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(defaultValue);
 
-  const meaning =
+  const meaningKey =
     value >= 3
-      ? "Only exceptional moves. Expect an alert a few times a year."
+      ? "watchlist.meaning.exceptional"
       : value >= 2.5
-        ? "Rare moves. Expect an alert every month or two."
+        ? "watchlist.meaning.rare"
         : value >= 2
-          ? "Unusual moves. Expect an alert every few weeks."
+          ? "watchlist.meaning.unusual"
           : value >= 1.5
-            ? "Mildly unusual moves. Expect alerts often."
-            : "Almost any deviation. Expect frequent alerts.";
+            ? "watchlist.meaning.mild"
+            : "watchlist.meaning.frequent";
 
   return (
     <div>
@@ -227,10 +233,10 @@ function ThresholdField({
           htmlFor={`${name}-${compact ? "row" : "new"}`}
           className="text-[11px] uppercase tracking-wide text-text-subtle"
         >
-          Alert above
+          {t("watchlist.alertAbove")}
         </label>
         <span className="tnum text-xs text-text-muted">
-          {value.toFixed(1)} sigma
+          {t("watchlist.sigma", { value: value.toFixed(1) })}
         </span>
       </div>
       <input
@@ -249,24 +255,26 @@ function ThresholdField({
         id={`${name}-meaning-${compact ? "row" : "new"}`}
         className="mt-0.5 text-xs text-text-subtle"
       >
-        {meaning}
+        {t(meaningKey)}
       </p>
     </div>
   );
 }
 
 function FormMessage({ state }: { state: ActionState }) {
+  const { tm } = useTranslation();
+
   if (state.error) {
     return (
       <p role="alert" className="text-xs text-down">
-        {state.error}
+        {tm(state.error)}
       </p>
     );
   }
   if (state.success) {
     return (
       <p role="status" className="text-xs text-up">
-        {state.success}
+        {tm(state.success)}
       </p>
     );
   }

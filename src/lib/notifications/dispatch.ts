@@ -12,6 +12,9 @@ import {
 } from "./rules";
 import { renderDigestEmail } from "./email";
 import { sendMail } from "./mailer";
+import { renderMessage } from "@/lib/i18n/message";
+import { translate } from "@/lib/i18n/translate";
+import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locales";
 
 /**
  * Scheduled alert run.
@@ -44,7 +47,7 @@ export async function runScheduledAlerts(now = new Date()): Promise<RunSummary> 
   };
 
   const watchItems = await prisma.watchlistItem.findMany({
-    include: { user: { select: { id: true, email: true, name: true } } },
+    include: { user: { select: { id: true, email: true, name: true, locale: true } } },
   });
 
   if (watchItems.length === 0) return summary;
@@ -130,14 +133,22 @@ export async function runScheduledAlerts(now = new Date()): Promise<RunSummary> 
     if (alerts.length === 0) continue;
 
     const digest = buildDigest(alerts);
+    const user = items[0].user;
+    const locale = isLocale(user.locale) ? user.locale : DEFAULT_LOCALE;
+    const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) =>
+      translate(locale, key, params);
 
+    // Resolved to plain text in the recipient's locale at send time and
+    // stored that way: a notification is a record of what was communicated,
+    // and re-resolving it later under a changed locale or dictionary would
+    // silently rewrite history.
     await prisma.notification.createMany({
       data: digest.alerts.map((alert) => ({
         userId,
         symbol: alert.symbol,
         kind: alert.kind,
-        title: alert.title,
-        body: alert.body,
+        title: renderMessage(alert.title, t),
+        body: alert.body.map((b) => renderMessage(b, t)).join(" "),
         payload: alert.payload as never,
       })),
     });
@@ -145,15 +156,14 @@ export async function runScheduledAlerts(now = new Date()): Promise<RunSummary> 
 
     // Recorded only after the notifications are persisted, so a crash mid-run
     // does not mark a symbol as notified without an alert existing.
-    for (const t of touched) {
+    for (const touchedItem of touched) {
       await prisma.watchlistItem.update({
-        where: { id: t.id },
-        data: { lastNotifiedAt: now, lastNotifiedZ: t.z },
+        where: { id: touchedItem.id },
+        data: { lastNotifiedAt: now, lastNotifiedZ: touchedItem.z },
       });
     }
 
-    const user = items[0].user;
-    if (await sendDigestEmail(user.email, user.name, digest)) {
+    if (await sendDigestEmail(locale, user.email, user.name, digest)) {
       summary.emailsSent += 1;
     }
   }
@@ -169,10 +179,11 @@ export async function runScheduledAlerts(now = new Date()): Promise<RunSummary> 
  * failure should degrade the run, not fail it and lose the alerts.
  */
 async function sendDigestEmail(
+  locale: Parameters<typeof renderDigestEmail>[0],
   email: string,
   name: string | null,
   digest: { alerts: Alert[]; omitted: number },
 ): Promise<boolean> {
-  const { subject, html, text } = renderDigestEmail(name, digest);
+  const { subject, html, text } = renderDigestEmail(locale, name, digest);
   return sendMail({ to: email, subject, html, text });
 }

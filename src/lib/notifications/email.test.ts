@@ -1,13 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { escapeHtml, renderDigestEmail } from "./email";
+import { msg } from "@/lib/i18n/message";
 import type { Alert } from "./rules";
 
 function alert(over: Partial<Alert> = {}): Alert {
   return {
     kind: "DIVERGENCE",
     symbol: "BBRI",
-    title: "BBRI is trading 4.2% above its twin",
-    body: "BBRI has moved beyond what its peers would predict.",
+    title: msg("alert.divergenceTitle", {
+      symbol: "BBRI",
+      magnitude: "4.2",
+      direction: msg("alert.direction.above"),
+    }),
+    body: [
+      msg("alert.divergenceSummary", {
+        symbol: "BBRI",
+        magnitude: "4.2",
+        direction: msg("alert.direction.above"),
+        peerCount: 5,
+        zScore: "2.60",
+      }),
+    ],
     priority: 2.6,
     payload: {},
     ...over,
@@ -30,13 +43,19 @@ describe("escapeHtml", () => {
 
 describe("renderDigestEmail", () => {
   it("escapes alert content rather than trusting it as markup", () => {
-    // Company names and API text reach this template; treating them as HTML
-    // would be an injection vector.
-    const rendered = renderDigestEmail(null, {
+    // Company names and API text reach this template through a Message's
+    // parameters; treating them as HTML would be an injection vector.
+    const rendered = renderDigestEmail("en", null, {
       alerts: [
         alert({
-          title: `<img src=x onerror="alert(1)">`,
-          body: `<script>steal()</script>`,
+          title: msg("alert.actionTitle", {
+            symbol: "BBRI",
+            summary: msg("actions.freeTextDetail", {
+              text: `<img src=x onerror="alert(1)">`,
+            }),
+            date: "2026-01-01",
+          }),
+          body: [msg("actions.freeTextDetail", { text: `<script>steal()</script>` })],
         }),
       ],
       omitted: 0,
@@ -53,7 +72,7 @@ describe("renderDigestEmail", () => {
   });
 
   it("escapes the recipient name", () => {
-    const rendered = renderDigestEmail(`<b>Rai</b>`, {
+    const rendered = renderDigestEmail("en", `<b>Rai</b>`, {
       alerts: [alert()],
       omitted: 0,
     });
@@ -61,10 +80,10 @@ describe("renderDigestEmail", () => {
   });
 
   it("uses the single alert as the subject, and a count for several", () => {
-    const one = renderDigestEmail(null, { alerts: [alert()], omitted: 0 });
-    expect(one.subject).toBe(alert().title);
+    const one = renderDigestEmail("en", null, { alerts: [alert()], omitted: 0 });
+    expect(one.subject).toMatch(/BBRI is trading 4\.2% above its twin/);
 
-    const many = renderDigestEmail(null, {
+    const many = renderDigestEmail("en", null, {
       alerts: [alert(), alert({ symbol: "BBCA" })],
       omitted: 0,
     });
@@ -72,20 +91,26 @@ describe("renderDigestEmail", () => {
   });
 
   it("always produces a plain text alternative", () => {
-    const rendered = renderDigestEmail("Rai", { alerts: [alert()], omitted: 0 });
-    expect(rendered.text).toContain(alert().title);
+    const rendered = renderDigestEmail("en", "Rai", { alerts: [alert()], omitted: 0 });
+    expect(rendered.text).toMatch(/BBRI is trading 4\.2% above its twin/);
     expect(rendered.text).not.toContain("<table");
   });
 
   it("states how many alerts were left out of the digest", () => {
-    const rendered = renderDigestEmail(null, { alerts: [alert()], omitted: 3 });
+    const rendered = renderDigestEmail("en", null, { alerts: [alert()], omitted: 3 });
     expect(rendered.html).toMatch(/3 further alerts were not included/);
     expect(rendered.text).toMatch(/3 further alerts were not included/);
   });
 
   it("carries the disclaimer in both formats", () => {
-    const rendered = renderDigestEmail(null, { alerts: [alert()], omitted: 0 });
+    const rendered = renderDigestEmail("en", null, { alerts: [alert()], omitted: 0 });
     expect(rendered.html).toMatch(/not investment advice/);
     expect(rendered.text).toMatch(/not investment advice/);
+  });
+
+  it("renders in Indonesian when given the id locale", () => {
+    const rendered = renderDigestEmail("id", null, { alerts: [alert()], omitted: 0 });
+    expect(rendered.html).toMatch(/bukan saran investasi/);
+    expect(rendered.text).toMatch(/bukan saran investasi/);
   });
 });

@@ -81,7 +81,10 @@ describe("summarizeCorporateActions", () => {
       null,
       TODAY,
     );
-    expect(items[0].summary).toMatch(/Reverse split, 1:4/);
+    expect(items[0].summary).toEqual({
+      key: "actions.reverseSplitSummary",
+      params: { ratio: "4" },
+    });
   });
 
   it("separates upcoming from recent events", () => {

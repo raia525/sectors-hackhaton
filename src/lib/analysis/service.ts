@@ -26,6 +26,7 @@ import { analyzeSeasonality, type SeasonalityResult } from "./seasonality";
 import { buildKeyStats, type KeyStats } from "./key-stats";
 import { analyzeSmartMoney } from "@/lib/smartmoney/engine";
 import type { SmartMoneySignal } from "@/lib/smartmoney/types";
+import { msg, type Message } from "@/lib/i18n/message";
 
 /**
  * Assembles a complete analysis for one symbol.
@@ -57,7 +58,7 @@ export interface AnalysisResult {
   /** Null when flow data was unavailable or too thin to score. */
   smartMoney: SmartMoneySignal | null;
   /** Non-fatal problems, including any peer that could not be fetched. */
-  notices: string[];
+  notices: Message[];
 }
 
 /** Optional extras, kept off the default path so they cost nothing unasked. */
@@ -111,7 +112,7 @@ export async function analyzeSymbol(
   }
 
   const client = getSectorsClient();
-  const notices: string[] = [];
+  const notices: Message[] = [];
 
   let targetReport;
   try {
@@ -143,9 +144,7 @@ export async function analyzeSymbol(
     MAX_PEER_CANDIDATES,
   );
   if (peerSymbols.length === 0) {
-    notices.push(
-      `The company report for ${symbol} listed no peers, so no twin could be constructed.`,
-    );
+    notices.push(msg("analysis.notice.noPeers", { symbol }));
   }
 
   // Peers are fetched concurrently but failures are tolerated individually: one
@@ -160,7 +159,7 @@ export async function analyzeSymbol(
     if (result.status === "fulfilled" && result.value.bars.length > 0) {
       candidates.push({ profile: result.value.profile, bars: result.value.bars });
     } else {
-      notices.push(`Peer ${peerSymbols[i]} was skipped because its data could not be loaded.`);
+      notices.push(msg("analysis.notice.peerSkipped", { symbol: peerSymbols[i] }));
     }
   }
 
@@ -168,9 +167,7 @@ export async function analyzeSymbol(
   // own parser; the stock parser would drop every row.
   const marketBars = parseIndexSeries(await client.indexDaily("ihsg"));
   if (marketBars.length === 0) {
-    notices.push(
-      "IHSG history was unavailable, so the market component of the attribution is reported as zero.",
-    );
+    notices.push(msg("analysis.notice.indexUnavailable"));
   }
 
   const shadow = buildShadow({
@@ -186,7 +183,7 @@ export async function analyzeSymbol(
     );
     news = parsed.results;
   } catch {
-    notices.push("Recent news could not be loaded, so the reality check uses price data only.");
+    notices.push(msg("analysis.notice.newsUnavailable"));
   }
 
   // Corporate actions cost one credit. Seasonality and key stats derive from
@@ -198,7 +195,7 @@ export async function analyzeSymbol(
       options.position ?? null,
     );
   } catch {
-    notices.push("Corporate actions could not be loaded for this stock.");
+    notices.push(msg("analysis.notice.actionsUnavailable"));
   }
 
   const smartMoney = options.includeSmartMoney
@@ -230,7 +227,7 @@ export async function analyzeSymbol(
 async function loadSmartMoney(
   symbol: string,
   bars: DailyBar[],
-  notices: string[],
+  notices: Message[],
 ): Promise<SmartMoneySignal | null> {
   const client = getSectorsClient();
 
@@ -247,9 +244,7 @@ async function loadSmartMoney(
       : [];
 
   if (foreignFlow.length === 0 && ownership.length === 0) {
-    notices.push(
-      "Foreign flow and ownership data were unavailable, so no positioning signal was produced.",
-    );
+    notices.push(msg("analysis.notice.smartMoneyUnavailable"));
     return null;
   }
 

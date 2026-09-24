@@ -19,6 +19,10 @@ model User {
   email        String   @unique
   passwordHash String
   name         String?
+  /// Interface language, used for scheduled notifications sent with no
+  /// active browser session to read a cookie from. Kept in sync with the
+  /// viewer's cookie choice on each authenticated request; "en" or "id".
+  locale       String   @default("en")
   createdAt    DateTime @default(now())
 
   watchlistItems WatchlistItem[]
@@ -126,4 +130,20 @@ model CreditUsage {
 
   @@index([createdAt])
   @@map("credit_usage")
+}
+
+/// The full IDX ticker directory, downloaded once from the screener endpoint
+/// and refreshed periodically.
+///
+/// This exists so the search dropdown can match symbol and company name
+/// instantly, client side, without spending a credit or waiting on a network
+/// round trip per keystroke. Listing changes rarely enough that a daily or
+/// weekly refresh is more than sufficient.
+model CompanyDirectoryEntry {
+  symbol      String   @id
+  companyName String
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyName])
+  @@map("company_directory")
 }

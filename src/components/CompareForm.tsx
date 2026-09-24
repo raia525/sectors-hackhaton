@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { MAX_COMPARE, MIN_COMPARE } from "@/lib/analysis/constants";
+import { SymbolCombobox, type DirectoryMatch } from "./SymbolCombobox";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
  * Ticker chip input for the comparison page.
@@ -14,24 +16,25 @@ import { MAX_COMPARE, MIN_COMPARE } from "@/lib/analysis/constants";
 
 export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [symbols, setSymbols] = useState<string[]>(initialSymbols);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const add = () => {
-    const symbol = value.trim().toUpperCase().replace(/\.JK$/, "");
+  const addSymbol = (raw: string) => {
+    const symbol = raw.trim().toUpperCase().replace(/\.JK$/, "");
 
     if (!/^[A-Z]{4}$/.test(symbol)) {
-      setError("An IDX ticker is four letters, for example BBRI.");
+      setError(t("search.invalidTicker"));
       return;
     }
     if (symbols.includes(symbol)) {
-      setError(`${symbol} is already in the comparison.`);
+      setError(t("compare.errorDuplicate", { symbol }));
       return;
     }
     if (symbols.length >= MAX_COMPARE) {
-      setError(`You can compare up to ${MAX_COMPARE} stocks at once.`);
+      setError(t("compare.errorMax", { max: MAX_COMPARE }));
       return;
     }
 
@@ -47,7 +50,7 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
 
   const run = () => {
     if (symbols.length < MIN_COMPARE) {
-      setError(`Add at least ${MIN_COMPARE} tickers to compare.`);
+      setError(t("compare.errorMin", { min: MIN_COMPARE }));
       return;
     }
     startTransition(() => {
@@ -60,37 +63,32 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
       <div className="flex flex-wrap gap-2">
         <div className="min-w-[180px] flex-1">
           <label htmlFor="compare-symbol" className="sr-only">
-            Add a ticker
+            {t("compare.addTicker")}
           </label>
-          <input
+          <SymbolCombobox
             id="compare-symbol"
             value={value}
-            onChange={(e) => {
-              setValue(e.target.value.toUpperCase());
+            onChange={(next) => {
+              setValue(next);
               if (error) setError(null);
             }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                add();
-              }
-            }}
-            placeholder="Add a ticker"
-            maxLength={7}
-            autoComplete="off"
-            spellCheck={false}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "compare-error" : undefined}
-            className="w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+            onSelect={(match: DirectoryMatch) => addSymbol(match.symbol)}
+            placeholder={t("compare.addTicker")}
+            inputClassName="w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+            invalid={error !== null}
+            describedBy={error ? "compare-error" : undefined}
+            // Enter with no dropdown open still adds whatever was typed, so a
+            // known ticker can be entered without waiting on the network.
+            onEnterWithoutSelection={() => addSymbol(value)}
           />
         </div>
 
         <button
           type="button"
-          onClick={add}
+          onClick={() => addSymbol(value)}
           className="rounded-full border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
         >
-          Add
+          {t("compare.add")}
         </button>
 
         <button
@@ -99,7 +97,7 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
           disabled={isPending || symbols.length < MIN_COMPARE}
           className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
-          {isPending ? "Comparing" : "Compare"}
+          {isPending ? t("compare.comparing") : t("compare.compareButton")}
         </button>
       </div>
 
@@ -118,7 +116,7 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
                 <button
                   type="button"
                   onClick={() => remove(symbol)}
-                  aria-label={`Remove ${symbol}`}
+                  aria-label={t("compare.remove", { symbol })}
                   className="text-text-subtle transition-colors hover:text-down"
                 >
                   &times;

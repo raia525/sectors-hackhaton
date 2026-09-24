@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildKeyStats } from "./key-stats";
 import { companyReportSchema } from "@/lib/sectors/schemas";
 import type { DailyBar } from "@/lib/shadow/types";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 function bars(closes: number[]): DailyBar[] {
   return closes.map((close, i) => ({
@@ -17,13 +18,13 @@ function bars(closes: number[]): DailyBar[] {
 
 function findStat(
   stats: ReturnType<typeof buildKeyStats>,
-  label: string,
+  labelKey: TranslationKey,
 ): number | null {
   for (const group of stats.groups) {
-    const hit = group.stats.find((s) => s.label === label);
+    const hit = group.stats.find((s) => s.labelKey === labelKey);
     if (hit) return hit.value;
   }
-  throw new Error(`No stat labelled ${label}`);
+  throw new Error(`No stat with key ${labelKey}`);
 }
 
 describe("buildKeyStats", () => {
@@ -39,17 +40,17 @@ describe("buildKeyStats", () => {
     });
 
     const stats = buildKeyStats(report, bars([100, 101]));
-    expect(findStat(stats, "Return on equity")).toBeCloseTo(0.4, 10);
-    expect(findStat(stats, "Net margin")).toBeCloseTo(0.2, 10);
-    expect(findStat(stats, "Debt to equity")).toBeCloseTo(1.5, 10);
+    expect(findStat(stats, "keystats.roe")).toBeCloseTo(0.4, 10);
+    expect(findStat(stats, "keystats.netMargin")).toBeCloseTo(0.2, 10);
+    expect(findStat(stats, "keystats.debtToEquity")).toBeCloseTo(1.5, 10);
   });
 
   it("reports null rather than zero when a figure is absent", () => {
     // A company with no reported ROE and one that earned nothing are different
     // facts; collapsing both to zero would state something untrue.
     const stats = buildKeyStats(companyReportSchema.parse({ symbol: "GOTO" }), []);
-    expect(findStat(stats, "Return on equity")).toBeNull();
-    expect(findStat(stats, "Dividend yield")).toBeNull();
+    expect(findStat(stats, "keystats.roe")).toBeNull();
+    expect(findStat(stats, "keystats.dividendYield")).toBeNull();
   });
 
   it("avoids dividing by zero equity", () => {
@@ -62,8 +63,8 @@ describe("buildKeyStats", () => {
       },
     });
     const stats = buildKeyStats(report, []);
-    expect(findStat(stats, "Return on equity")).toBeNull();
-    expect(findStat(stats, "Debt to equity")).toBeNull();
+    expect(findStat(stats, "keystats.roe")).toBeNull();
+    expect(findStat(stats, "keystats.debtToEquity")).toBeNull();
   });
 
   it("locates the price within its 52 week range", () => {
@@ -113,7 +114,7 @@ describe("buildKeyStats", () => {
       companyReportSchema.parse({ symbol: "BBRI" }),
       bars([100, 102, 99, 103, 101]),
     );
-    expect(findStat(stats, "Annualised volatility")).toBeGreaterThan(0);
+    expect(findStat(stats, "keystats.volatility")).toBeGreaterThan(0);
   });
 
   it("falls back to the last bar when the report has no close price", () => {

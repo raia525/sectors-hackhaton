@@ -1,4 +1,7 @@
 import type { Alert } from "./rules";
+import { translate } from "@/lib/i18n/translate";
+import { renderMessage } from "@/lib/i18n/message";
+import type { Locale } from "@/lib/i18n/locales";
 
 /**
  * Digest email rendering.
@@ -11,6 +14,10 @@ import type { Alert } from "./rules";
  * Every interpolated value is escaped. Alert bodies contain company names and
  * API-sourced text, and treating that as trusted markup in an email would be an
  * injection vector.
+ *
+ * Rendered in the recipient's stored locale (see dispatch.ts): this runs
+ * inside a scheduled job with no active browser session, so there is no
+ * cookie to read the viewer's language preference from.
  */
 
 export interface RenderedEmail {
@@ -30,16 +37,25 @@ export function escapeHtml(value: string): string {
 }
 
 export function renderDigestEmail(
+  locale: Locale,
   name: string | null,
   digest: { alerts: Alert[]; omitted: number },
 ): RenderedEmail {
   const { alerts, omitted } = digest;
-  const greeting = name ? `Hello ${name},` : "Hello,";
+  const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) =>
+    translate(locale, key, params);
+  const tm = (message: Alert["title"]) => renderMessage(message, t);
+
+  const greeting = name ? t("email.greeting.named", { name }) : t("email.greeting.anonymous");
+  const omittedLabel = omitted === 1 ? t("email.omitted.singular") : t("email.omitted.plural");
 
   const subject =
     alerts.length === 1
-      ? alerts[0].title
-      : `${alerts.length} stocks on your watchlist have moved away from their twins`;
+      ? tm(alerts[0].title)
+      : t("email.subjectMultiple", { count: alerts.length });
+
+  const alertText = (alert: Alert) =>
+    `${tm(alert.title)}\n${alert.body.map((b) => tm(b)).join(" ")}`;
 
   const rows = alerts
     .map(
@@ -47,10 +63,10 @@ export function renderDigestEmail(
       <tr>
         <td style="padding:16px 0;border-bottom:1px solid #26262a;">
           <div style="font-size:15px;font-weight:600;color:#ededec;margin-bottom:6px;">
-            ${escapeHtml(alert.title)}
+            ${escapeHtml(tm(alert.title))}
           </div>
           <div style="font-size:14px;line-height:1.55;color:#a1a1a0;">
-            ${escapeHtml(alert.body)}
+            ${escapeHtml(alert.body.map((b) => tm(b)).join(" "))}
           </div>
         </td>
       </tr>`,
@@ -60,12 +76,14 @@ export function renderDigestEmail(
   const omittedNote =
     omitted > 0
       ? `<p style="font-size:13px;color:#6e6e6d;margin:16px 0 0;">
-           ${omitted} further ${omitted === 1 ? "alert was" : "alerts were"} not included in this digest.
+           ${escapeHtml(t("email.omittedNote", { count: omitted, label: omittedLabel }))}
          </p>`
       : "";
 
+  const preheader = alertText(alerts[0]).slice(0, 120);
+
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -73,7 +91,7 @@ export function renderDigestEmail(
 </head>
 <body style="margin:0;padding:0;background:#0c0c0d;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-    ${escapeHtml(alerts[0]?.body.slice(0, 120) ?? "")}
+    ${escapeHtml(preheader)}
   </div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c0c0d;padding:32px 16px;">
     <tr>
@@ -86,16 +104,14 @@ export function renderDigestEmail(
               </div>
               <p style="font-size:14px;color:#a1a1a0;margin:0 0 4px;">${escapeHtml(greeting)}</p>
               <p style="font-size:14px;line-height:1.55;color:#a1a1a0;margin:0 0 8px;">
-                These stocks have moved beyond what comparable companies explain.
+                ${escapeHtml(t("email.intro"))}
               </p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 ${rows}
               </table>
               ${omittedNote}
               <p style="font-size:12px;line-height:1.6;color:#6e6e6d;margin:24px 0 0;">
-                SHADOW IDX reports what has already happened in price and news.
-                It does not forecast returns and it is not investment advice.
-                You are receiving this because you added these stocks to your watchlist.
+                ${escapeHtml(t("email.footer.disclaimer"))}
               </p>
             </td>
           </tr>
@@ -109,13 +125,11 @@ export function renderDigestEmail(
   const text = [
     greeting,
     "",
-    "These stocks have moved beyond what comparable companies explain.",
+    t("email.intro"),
     "",
-    ...alerts.map((a) => `${a.title}\n${a.body}\n`),
-    omitted > 0
-      ? `${omitted} further ${omitted === 1 ? "alert was" : "alerts were"} not included in this digest.\n`
-      : "",
-    "SHADOW IDX reports what has already happened in price and news. It does not forecast returns and it is not investment advice.",
+    ...alerts.map((a) => `${alertText(a)}\n`),
+    omitted > 0 ? `${t("email.omittedNote", { count: omitted, label: omittedLabel })}\n` : "",
+    t("email.footer.disclaimer"),
   ]
     .filter(Boolean)
     .join("\n");

@@ -75,37 +75,11 @@ export function Stat({
   );
 }
 
-/**
- * Formats a fraction as a signed percentage.
- * `0.0734` becomes `+7.34%`.
- */
-export function formatPercent(value: number, digits = 2): string {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${(value * 100).toFixed(digits)}%`;
-}
-
-export function formatSigned(value: number, digits = 2): string {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(digits)}`;
-}
-
-/**
- * Abbreviates large rupiah figures, which routinely run to trillions.
- *
- * Small values are rounded to whole rupiah before formatting. Indonesian
- * notation uses the full stop as a thousands separator, so an unrounded 377.57
- * renders as "Rp 377,57" at best and is misread as 377 thousand at worst. No
- * IDX price or per-share figure needs sub-rupiah precision, so rounding removes
- * the ambiguity entirely.
- */
-export function formatIdr(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1e12) return `${sign}Rp ${(abs / 1e12).toFixed(2)} T`;
-  if (abs >= 1e9) return `${sign}Rp ${(abs / 1e9).toFixed(2)} M`;
-  if (abs >= 1e6) return `${sign}Rp ${(abs / 1e6).toFixed(2)} Jt`;
-  return `${sign}Rp ${Math.round(abs).toLocaleString("id-ID")}`;
-}
+// Re-exported so existing imports from this module keep working. The
+// implementations live in lib/format.ts, dependency-free, so analysis engines
+// can format a figure into a translated sentence without importing anything
+// React-related.
+export { formatIdr, formatPercent, formatSigned } from "@/lib/format";
 
 export type BadgeTone =
   | "extreme"
@@ -149,7 +123,7 @@ export function Badge({
  * without its limits is the failure mode the whole product is built to avoid,
  * so the caveats get real visual weight rather than fine print.
  */
-export function Caveats({ items, title = "What this does not tell you" }: { items: string[]; title?: string }) {
+export function Caveats({ items, title }: { items: string[]; title: string }) {
   if (items.length === 0) return null;
 
   return (

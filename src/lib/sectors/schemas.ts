@@ -368,3 +368,48 @@ export function parseOwnership(data: unknown): OwnershipSnapshot[] {
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
+
+export const screenerResponseSchema = z.object({
+  results: z.array(
+    z.object({
+      symbol: z.string(),
+      company_name: z.string(),
+    }),
+  ),
+  pagination: z.object({
+    total_count: z.number(),
+    showing: z.number(),
+    limit: z.number(),
+    offset: z.number(),
+    has_next: z.boolean(),
+  }),
+});
+
+export interface DirectoryEntry {
+  symbol: string;
+  companyName: string;
+}
+
+/**
+ * Maps a screener page into plain directory entries.
+ *
+ * The `.JK` suffix is stripped so entries match the bare ticker used
+ * everywhere else in the app (search input, watchlist, URLs).
+ */
+export function parseScreenerPage(data: unknown): {
+  entries: DirectoryEntry[];
+  hasNext: boolean;
+  totalCount: number;
+} {
+  const parsed = screenerResponseSchema.safeParse(data);
+  if (!parsed.success) return { entries: [], hasNext: false, totalCount: 0 };
+
+  return {
+    entries: parsed.data.results.map((r) => ({
+      symbol: r.symbol.replace(/\.JK$/i, "").toUpperCase(),
+      companyName: r.company_name,
+    })),
+    hasNext: parsed.data.pagination.has_next,
+    totalCount: parsed.data.pagination.total_count,
+  };
+}

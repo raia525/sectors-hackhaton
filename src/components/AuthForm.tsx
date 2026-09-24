@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { signIn, signUp, type AuthState } from "@/app/signin/actions";
+import { useTranslation } from "@/lib/i18n/client";
 
 const INITIAL: AuthState = {};
 
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
+  const { t, tm } = useTranslation();
   const isSignUp = mode === "signup";
   const [state, action, pending] = useActionState(
     isSignUp ? signUp : signIn,
@@ -19,7 +21,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <Field
           id="name"
           name="name"
-          label="Name, optional"
+          label={t("auth.name")}
           type="text"
           autoComplete="name"
         />
@@ -28,7 +30,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <Field
         id="email"
         name="email"
-        label="Email"
+        label={t("auth.email")}
         type="email"
         autoComplete="email"
         required
@@ -38,21 +40,19 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <Field
           id="password"
           name="password"
-          label="Password"
+          label={t("auth.password")}
           type="password"
           autoComplete={isSignUp ? "new-password" : "current-password"}
           required
         />
         {isSignUp ? (
-          <p className="mt-1.5 text-xs text-text-subtle">
-            At least 10 characters. Length matters more than symbols.
-          </p>
+          <p className="mt-1.5 text-xs text-text-subtle">{t("auth.passwordHint")}</p>
         ) : null}
       </div>
 
       {state.error ? (
         <p role="alert" className="text-sm text-down">
-          {state.error}
+          {tm(state.error)}
         </p>
       ) : null}
 
@@ -61,16 +61,16 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         disabled={pending}
         className="w-full rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
       >
-        {pending ? "Working" : isSignUp ? "Create account" : "Sign in"}
+        {pending ? t("auth.working") : isSignUp ? t("auth.createAccount") : t("auth.signIn")}
       </button>
 
       <p className="text-center text-sm text-text-muted">
-        {isSignUp ? "Already have an account? " : "No account yet? "}
+        {isSignUp ? t("auth.alreadyHaveAccount") : t("auth.noAccountYet")}{" "}
         <Link
           href={isSignUp ? "/signin" : "/signup"}
           className="text-accent hover:underline"
         >
-          {isSignUp ? "Sign in" : "Create one"}
+          {isSignUp ? t("auth.signIn") : t("auth.createOne")}
         </Link>
       </p>
     </form>

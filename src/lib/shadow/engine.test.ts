@@ -190,7 +190,7 @@ describe("buildShadow", () => {
       marketBars: market,
     });
     expect(result.constituents).toHaveLength(0);
-    expect(result.warnings[0]).toMatch(/Insufficient overlapping price history/);
+    expect(result.warnings[0].key).toBe("shadow.warning.insufficientHistory");
   });
 
   it("builds a twin from correlated peers and reports a strong fit", () => {
@@ -241,7 +241,13 @@ describe("buildShadow", () => {
       marketBars: market,
     });
     expect(result.constituents).toHaveLength(0);
-    expect(result.warnings.join(" ")).toMatch(/No peer|Insufficient/);
+    expect(
+      result.warnings.some((w) =>
+        ["shadow.warning.noPeerQualified", "shadow.warning.insufficientHistory"].includes(
+          w.key,
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("keeps attribution additive on real-shaped data", () => {

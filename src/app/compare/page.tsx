@@ -3,7 +3,9 @@ import { compareSymbols, parseSymbols } from "@/lib/analysis/compare";
 import { MAX_COMPARE, MIN_COMPARE } from "@/lib/analysis/constants";
 import { CompareForm } from "@/components/CompareForm";
 import { ComparisonTable } from "@/components/ComparisonTable";
+import { CompareSkeleton } from "@/components/CompareSkeleton";
 import { Caveats, EmptyState } from "@/components/ui/primitives";
+import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata = {
   title: "Compare stocks | SHADOW IDX",
@@ -18,17 +20,16 @@ export default async function ComparePage({
 }) {
   const { symbols: raw } = await searchParams;
   const symbols = parseSymbols(raw);
+  const { t } = await getTranslator();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="mb-8 max-w-2xl">
         <h1 className="text-2xl font-semibold tracking-tight text-text">
-          Compare stocks
+          {t("compare.title")}
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-text-muted">
-          Ranking by return tells you which sector did well. Ranking by
-          divergence tells you which companies are doing something their peers
-          are not.
+          {t("compare.description")}
         </p>
       </div>
 
@@ -37,11 +38,17 @@ export default async function ComparePage({
       <div className="mt-10">
         {symbols.length === 0 ? (
           <EmptyState
-            title="Add up to four tickers"
-            description={`Enter ${MIN_COMPARE} to ${MAX_COMPARE} IDX tickers to compare how far each has moved from its own twin.`}
+            title={t("compare.emptyTitle")}
+            description={t("compare.emptyDescription", {
+              min: MIN_COMPARE,
+              max: MAX_COMPARE,
+            })}
           />
         ) : (
-          <Suspense key={symbols.join(",")} fallback={<CompareSkeleton count={symbols.length} />}>
+          <Suspense
+            key={symbols.join(",")}
+            fallback={<CompareSkeleton count={symbols.length} />}
+          >
             <ComparisonResults symbols={symbols} />
           </Suspense>
         )}
@@ -51,24 +58,15 @@ export default async function ComparePage({
 }
 
 async function ComparisonResults({ symbols }: { symbols: string[] }) {
-  const result = await compareSymbols(symbols);
+  const [result, { t, tm }] = await Promise.all([
+    compareSymbols(symbols),
+    getTranslator(),
+  ]);
 
   return (
     <div className="space-y-4">
       <ComparisonTable result={result} />
-      <Caveats items={result.caveats} title="How to read this" />
-    </div>
-  );
-}
-
-function CompareSkeleton({ count }: { count: number }) {
-  return (
-    <div aria-live="polite" aria-busy="true" className="space-y-3">
-      <p className="text-sm text-text-muted">
-        Building a twin for {count} {count === 1 ? "stock" : "stocks"}. Each one
-        fetches its own peer history, so this takes a moment.
-      </p>
-      <div className="h-56 animate-pulse rounded-[10px] border border-border bg-surface" />
+      <Caveats items={result.caveats.map((c) => tm(c))} title={t("compare.howToRead")} />
     </div>
   );
 }

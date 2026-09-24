@@ -1,5 +1,7 @@
 import { mean, stdDev } from "@/lib/shadow/stats";
 import type { DailyBar } from "@/lib/shadow/types";
+import { msg, type Message } from "@/lib/i18n/message";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Monthly seasonality.
@@ -22,7 +24,7 @@ const MIN_YEARS = 4;
 export interface MonthStat {
   /** 1-12. */
   month: number;
-  label: string;
+  labelKey: TranslationKey;
   averageReturn: number;
   medianReturn: number;
   /** Fraction of years the month was positive, 0-1. */
@@ -40,12 +42,14 @@ export interface SeasonalityResult {
   best: MonthStat | null;
   worst: MonthStat | null;
   totalYears: number;
-  caveats: string[];
+  caveats: Message[];
 }
 
-const MONTH_LABELS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+const MONTH_KEY: TranslationKey[] = [
+  "seasonality.month.1", "seasonality.month.2", "seasonality.month.3",
+  "seasonality.month.4", "seasonality.month.5", "seasonality.month.6",
+  "seasonality.month.7", "seasonality.month.8", "seasonality.month.9",
+  "seasonality.month.10", "seasonality.month.11", "seasonality.month.12",
 ];
 
 /**
@@ -95,7 +99,7 @@ export function analyzeSeasonality(bars: DailyBar[]): SeasonalityResult {
     const positives = rets.filter((r) => r > 0).length;
     months.push({
       month: m,
-      label: MONTH_LABELS[m - 1],
+      labelKey: MONTH_KEY[m - 1],
       averageReturn: mean(rets),
       medianReturn: median(rets),
       hitRate: positives / rets.length,
@@ -108,27 +112,24 @@ export function analyzeSeasonality(bars: DailyBar[]): SeasonalityResult {
   const reliable = months.filter((m) => m.reliable);
   const ranked = [...reliable].sort((a, b) => b.averageReturn - a.averageReturn);
 
-  const caveats: string[] = [];
-  caveats.push(
-    "Seasonality describes what happened in past calendar months. It carries no information about what any future month will do.",
-  );
+  const caveats: Message[] = [msg("seasonality.notPredictive")];
 
   // The daily transaction endpoint caps its window at 90 days, so a single
   // fetch covers only three or four months of one year. Saying so plainly is
   // better than presenting four partial months as a seasonal profile.
   if (months.length < 12) {
-    caveats.push(
-      `Only ${months.length} of 12 calendar months appear in the available price history, so this is a partial view rather than a full seasonal profile.`,
-    );
+    caveats.push(msg("seasonality.partialView", { available: months.length }));
   }
 
   if (reliable.length === 0) {
-    caveats.push(
-      `No month has at least ${MIN_YEARS} years of history, so nothing here is described as a seasonal tendency.`,
-    );
+    caveats.push(msg("seasonality.noneReliable", { minYears: MIN_YEARS }));
   } else if (reliable.length < months.length) {
     caveats.push(
-      `${months.length - reliable.length} of ${months.length} months have fewer than ${MIN_YEARS} years of data and are shown without being called a tendency.`,
+      msg("seasonality.someUnreliable", {
+        count: months.length - reliable.length,
+        total: months.length,
+        minYears: MIN_YEARS,
+      }),
     );
   }
 
@@ -136,9 +137,7 @@ export function analyzeSeasonality(bars: DailyBar[]): SeasonalityResult {
     (m) => m.volatility > Math.abs(m.averageReturn) * 2,
   );
   if (inconsistent.length > 0) {
-    caveats.push(
-      "For several months the spread of outcomes is more than twice the average, so the average is not a reliable description of a typical year.",
-    );
+    caveats.push(msg("seasonality.inconsistent"));
   }
 
   return {

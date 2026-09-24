@@ -2,6 +2,7 @@ import "server-only";
 import { analyzeSymbol, AnalysisError, type AnalysisResult } from "./service";
 import { normalizeSymbol } from "@/lib/sectors/endpoints";
 import { MAX_COMPARE } from "./constants";
+import { msg, type Message } from "@/lib/i18n/message";
 
 /**
  * Side-by-side comparison of several stocks.
@@ -34,7 +35,7 @@ export interface ComparisonRow {
 export interface ComparisonFailure {
   symbol: string;
   ok: false;
-  reason: string;
+  reason: Message;
 }
 
 export type ComparisonEntry = ComparisonRow | ComparisonFailure;
@@ -43,8 +44,15 @@ export interface ComparisonResult {
   entries: ComparisonEntry[];
   /** Symbols that produced a usable twin, ranked by absolute divergence. */
   ranked: ComparisonRow[];
-  caveats: string[];
+  caveats: Message[];
 }
+
+const ANALYSIS_ERROR_KEY = {
+  invalid_symbol: "analysis.error.invalidSymbol",
+  no_data: "analysis.error.noData",
+  credits_exhausted: "analysis.error.creditsExhausted",
+  upstream: "analysis.error.upstream",
+} as const;
 
 export function parseSymbols(input: string | string[] | undefined): string[] {
   if (!input) return [];
@@ -74,8 +82,7 @@ export async function compareSymbols(symbols: string[]): Promise<ComparisonResul
         entries.push({
           symbol,
           ok: false,
-          reason:
-            shadow.warnings[0] ?? "No twin could be constructed for this stock.",
+          reason: shadow.warnings[0] ?? msg("compare.noTwinReason"),
         });
         continue;
       }
@@ -101,8 +108,8 @@ export async function compareSymbols(symbols: string[]): Promise<ComparisonResul
         ok: false,
         reason:
           error instanceof AnalysisError
-            ? error.message
-            : `Could not analyse ${symbol}.`,
+            ? msg(ANALYSIS_ERROR_KEY[error.code])
+            : msg("compare.analysisFailedReason", { symbol }),
       });
     }
   }
@@ -111,14 +118,12 @@ export async function compareSymbols(symbols: string[]): Promise<ComparisonResul
     .filter((e): e is ComparisonRow => e.ok)
     .sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
 
-  const caveats: string[] = [
-    "Stocks are ranked by how far each has moved from its own twin, not by return. A large return that its peers also produced carries no information about the company.",
-  ];
+  const caveats: Message[] = [msg("compare.rankingCaveat")];
 
   const weak = ranked.filter((r) => r.fitQuality < 0.3);
   if (weak.length > 0) {
     caveats.push(
-      `${weak.map((r) => r.symbol).join(", ")} ${weak.length === 1 ? "has a twin that explains" : "have twins that explain"} less than 30% of price variation, so ${weak.length === 1 ? "its" : "their"} divergence is indicative rather than conclusive.`,
+      msg("compare.weakFitCaveat", { symbols: weak.map((r) => r.symbol).join(", ") }),
     );
   }
 

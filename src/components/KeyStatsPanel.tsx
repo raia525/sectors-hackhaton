@@ -1,5 +1,8 @@
+"use client";
+
 import type { KeyStat, KeyStats } from "@/lib/analysis/key-stats";
 import { formatIdr } from "./ui/primitives";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
  * Headline company statistics.
@@ -14,6 +17,8 @@ import { formatIdr } from "./ui/primitives";
  */
 
 export function KeyStatsPanel({ stats }: { stats: KeyStats }) {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-5">
       {stats.rangePosition !== null &&
@@ -29,13 +34,13 @@ export function KeyStatsPanel({ stats }: { stats: KeyStats }) {
 
       <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
         {stats.groups.map((group) => (
-          <section key={group.title}>
+          <section key={group.titleKey}>
             <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
-              {group.title}
+              {t(group.titleKey)}
             </h3>
             <dl className="space-y-1.5">
               {group.stats.map((stat) => (
-                <StatRow key={stat.label} stat={stat} />
+                <StatRow key={stat.labelKey} stat={stat} />
               ))}
             </dl>
           </section>
@@ -46,23 +51,25 @@ export function KeyStatsPanel({ stats }: { stats: KeyStats }) {
 }
 
 function StatRow({ stat }: { stat: KeyStat }) {
+  const { t } = useTranslation();
   const hasValue = stat.value !== null && Number.isFinite(stat.value);
+  const hint = stat.hintKey ? t(stat.hintKey) : undefined;
 
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-sm text-text-muted" title={stat.hint}>
-        {stat.label}
-        {stat.hint ? (
+      <dt className="text-sm text-text-muted" title={hint}>
+        {t(stat.labelKey)}
+        {hint ? (
           <span className="ml-1 cursor-help text-text-subtle" aria-hidden>
             &#9432;
           </span>
         ) : null}
-        {stat.hint ? <span className="sr-only">. {stat.hint}</span> : null}
+        {hint ? <span className="sr-only">. {hint}</span> : null}
       </dt>
       <dd
         className={`tnum shrink-0 text-sm ${hasValue ? "text-text" : "text-text-subtle"}`}
       >
-        {hasValue ? formatStat(stat.value as number, stat.format) : "not reported"}
+        {hasValue ? formatStat(stat.value as number, stat.format) : t("keystats.notReported")}
       </dd>
     </div>
   );
@@ -96,13 +103,14 @@ function RangeBar({
   position: number;
   last: number | null;
 }) {
+  const { t } = useTranslation();
   const pct = position * 100;
 
   return (
     <div>
       <div className="mb-1.5 flex items-baseline justify-between">
         <span className="text-[11px] uppercase tracking-wide text-text-subtle">
-          52 week range
+          {t("keystats.range52w")}
         </span>
         {last !== null ? (
           <span className="tnum text-sm text-text">{formatIdr(last)}</span>
@@ -112,7 +120,11 @@ function RangeBar({
       <div
         className="relative h-1.5 rounded-full bg-surface-raised"
         role="img"
-        aria-label={`The price sits ${pct.toFixed(0)} percent of the way between its 52 week low of ${low.toLocaleString("id-ID")} and its high of ${high.toLocaleString("id-ID")}.`}
+        aria-label={t("keystats.rangeAriaLabel", {
+          percent: pct.toFixed(0),
+          low: low.toLocaleString("id-ID"),
+          high: high.toLocaleString("id-ID"),
+        })}
       >
         <div
           aria-hidden

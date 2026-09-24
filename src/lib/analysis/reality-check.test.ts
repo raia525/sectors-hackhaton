@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runRealityCheck } from "./reality-check";
+import { msg } from "@/lib/i18n/message";
 import type { NewsItem } from "@/lib/sectors/schemas";
 import type { ShadowAnalysis } from "@/lib/shadow/types";
 
@@ -105,8 +106,9 @@ describe("runRealityCheck", () => {
 
   it("never omits the caveats that keep the verdict honest", () => {
     const result = runRealityCheck(shadow(), news(5, "laba"));
-    expect(result.caveats.join(" ")).toMatch(/not a forecast/i);
-    expect(result.caveats.join(" ")).toMatch(/keyword lexicon/i);
+    const keys = result.caveats.map((c) => c.key);
+    expect(keys).toContain("reality.caveat.notAdvice");
+    expect(keys).toContain("reality.caveat.lexicon");
   });
 
   it("downgrades confidence when the twin fits poorly", () => {
@@ -115,7 +117,8 @@ describe("runRealityCheck", () => {
       news(12, "laba melonjak"),
     );
     expect(weak.confidence).toBe("low");
-    expect(weak.caveats.join(" ")).toMatch(/explains 15%/);
+    const weakFit = weak.caveats.find((c) => c.key === "reality.caveat.weakFit");
+    expect(weakFit?.params?.percent).toBe("15");
   });
 
   it("requires a well-fitted twin and broad coverage for high confidence", () => {
@@ -127,15 +130,13 @@ describe("runRealityCheck", () => {
   });
 
   it("propagates shadow warnings into the caveats", () => {
-    const result = runRealityCheck(
-      shadow({ warnings: ["Twin built from only 2 peers."] }),
-      news(5, "laba"),
-    );
-    expect(result.caveats.join(" ")).toMatch(/only 2 peers/);
+    const warning = msg("shadow.warning.fewPeers", { count: 2, plural: "s" });
+    const result = runRealityCheck(shadow({ warnings: [warning] }), news(5, "laba"));
+    expect(result.caveats).toContainEqual(warning);
   });
 
-  it("always reports the attribution breakdown", () => {
+  it("always reports the attribution breakdown first", () => {
     const result = runRealityCheck(shadow(), news(4, "laba"));
-    expect(result.findings[0]).toMatch(/traces to the market/);
+    expect(result.findings[0].key).toBe("reality.attribution");
   });
 });

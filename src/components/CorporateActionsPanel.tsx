@@ -1,5 +1,9 @@
-import type { CorporateActionItem } from "@/lib/analysis/corporate-actions";
+"use client";
+
+import type { ActionKind, CorporateActionItem } from "@/lib/analysis/corporate-actions";
 import { Badge, formatIdr } from "./ui/primitives";
+import { useTranslation } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Corporate actions and what each one does to a holding.
@@ -10,6 +14,12 @@ import { Badge, formatIdr } from "./ui/primitives";
  * actually takes.
  */
 
+const KIND_KEY: Record<ActionKind, TranslationKey> = {
+  dividend: "actions.kind.dividend",
+  stock_split: "actions.kind.stockSplit",
+  agm: "actions.kind.agm",
+};
+
 export function CorporateActionsPanel({
   items,
   upcomingIncomeIdr,
@@ -19,12 +29,10 @@ export function CorporateActionsPanel({
   upcomingIncomeIdr: number | null;
   hasPosition: boolean;
 }) {
+  const { t } = useTranslation();
+
   if (items.length === 0) {
-    return (
-      <p className="text-sm text-text-muted">
-        No dividends, splits, or meetings on record for this stock.
-      </p>
-    );
+    return <p className="text-sm text-text-muted">{t("actions.noneRecorded")}</p>;
   }
 
   const upcoming = items.filter((i) => i.timing === "upcoming");
@@ -35,21 +43,19 @@ export function CorporateActionsPanel({
       {upcomingIncomeIdr !== null && upcomingIncomeIdr > 0 ? (
         <div className="rounded-[8px] border border-accent/30 bg-accent-soft p-3">
           <div className="text-[11px] uppercase tracking-wide text-text-subtle">
-            Due to your position
+            {t("actions.dueToPosition")}
           </div>
           <div className="tnum mt-0.5 text-lg text-text">
             {formatIdr(upcomingIncomeIdr)}
           </div>
-          <p className="mt-0.5 text-xs text-text-muted">
-            From upcoming dividends, before tax.
-          </p>
+          <p className="mt-0.5 text-xs text-text-muted">{t("actions.dueFootnote")}</p>
         </div>
       ) : null}
 
       {upcoming.length > 0 ? (
         <section>
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
-            Upcoming
+            {t("actions.upcoming")}
           </h3>
           <ul className="space-y-2.5">
             {upcoming.map((item, i) => (
@@ -62,7 +68,7 @@ export function CorporateActionsPanel({
       {recent.length > 0 ? (
         <section>
           <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
-            Recent
+            {t("actions.recent")}
           </h3>
           <ul className="space-y-2.5">
             {recent.map((item, i) => (
@@ -73,10 +79,7 @@ export function CorporateActionsPanel({
       ) : null}
 
       {!hasPosition ? (
-        <p className="text-xs text-text-subtle">
-          Add this stock to your watchlist with a position to see these effects
-          in rupiah rather than as ratios.
-        </p>
+        <p className="text-xs text-text-subtle">{t("actions.noPositionHint")}</p>
       ) : null}
     </div>
   );
@@ -89,6 +92,7 @@ function ActionRow({
   item: CorporateActionItem;
   muted?: boolean;
 }) {
+  const { t, tm } = useTranslation();
   const tone =
     item.kind === "dividend" ? "accent" : item.kind === "stock_split" ? "moderate" : "neutral";
 
@@ -96,9 +100,9 @@ function ActionRow({
     <li>
       <div className="flex items-baseline justify-between gap-3">
         <span className={`text-sm ${muted ? "text-text-muted" : "text-text"}`}>
-          {item.summary}
+          {tm(item.summary)}
         </span>
-        <Badge tone={tone}>{item.kind.replace(/_/g, " ")}</Badge>
+        <Badge tone={tone}>{t(KIND_KEY[item.kind])}</Badge>
       </div>
 
       <div className="tnum mt-0.5 text-xs text-text-subtle">{item.date}</div>
@@ -106,21 +110,22 @@ function ActionRow({
       {item.effect ? (
         <div className="mt-1 text-xs text-text-muted">
           {item.effect.cashIdr !== null ? (
-            <span>You receive {formatIdr(item.effect.cashIdr)} before tax.</span>
+            <span>{t("actions.receiveCash", { amount: formatIdr(item.effect.cashIdr) })}</span>
           ) : null}
           {item.effect.sharesAfter !== null &&
           item.effect.adjustedAvgPrice !== null ? (
             <span>
-              Your holding becomes{" "}
-              {item.effect.sharesAfter.toLocaleString("id-ID")} shares at{" "}
-              {formatIdr(item.effect.adjustedAvgPrice)} each.
+              {t("actions.becomesShares", {
+                shares: item.effect.sharesAfter.toLocaleString("id-ID"),
+                price: formatIdr(item.effect.adjustedAvgPrice),
+              })}
             </span>
           ) : null}
         </div>
       ) : null}
 
       {item.detail ? (
-        <p className="mt-0.5 text-xs text-text-subtle">{item.detail}</p>
+        <p className="mt-0.5 text-xs text-text-subtle">{tm(item.detail)}</p>
       ) : null}
     </li>
   );

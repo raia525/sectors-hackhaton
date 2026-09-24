@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
 import { normalizeSymbol } from "@/lib/sectors/endpoints";
+import { msg, type Message } from "@/lib/i18n/message";
 
 /**
  * Watchlist mutations.
@@ -13,11 +14,15 @@ import { normalizeSymbol } from "@/lib/sectors/endpoints";
  * user id. Passing a record id from the client is not enough on its own: a
  * user could send someone else's id, so ownership is enforced in the query
  * itself rather than assumed from the request.
+ *
+ * These run as an active request from a signed-in user's own browser, unlike
+ * the scheduled alert job, so a Message here is resolved against the current
+ * cookie by the calling component (via `tm`), not a stored account locale.
  */
 
 export interface ActionState {
-  error?: string;
-  success?: string;
+  error?: Message;
+  success?: Message;
 }
 
 const addSchema = z.object({
@@ -32,7 +37,7 @@ export async function addToWatchlist(
   formData: FormData,
 ): Promise<ActionState> {
   const userId = await getSessionUserId();
-  if (!userId) return { error: "Sign in to manage your watchlist." };
+  if (!userId) return { error: msg("watchlist.action.signInRequired") };
 
   const parsed = addSchema.safeParse({
     symbol: formData.get("symbol"),
@@ -42,18 +47,18 @@ export async function addToWatchlist(
   });
 
   if (!parsed.success) {
-    return { error: "Check the values and try again." };
+    return { error: msg("watchlist.action.checkValues") };
   }
 
   const symbol = normalizeSymbol(parsed.data.symbol);
   if (!symbol) {
-    return { error: "An IDX ticker is four letters, for example BBRI." };
+    return { error: msg("search.invalidTicker") };
   }
 
   const existing = await prisma.watchlistItem.findUnique({
     where: { userId_symbol: { userId, symbol } },
   });
-  if (existing) return { error: `${symbol} is already on your watchlist.` };
+  if (existing) return { error: msg("watchlist.action.alreadyTracked", { symbol }) };
 
   await prisma.watchlistItem.create({
     data: { userId, symbol, zScoreThreshold: parsed.data.zScoreThreshold },
@@ -75,7 +80,7 @@ export async function addToWatchlist(
   }
 
   revalidatePath("/watchlist");
-  return { success: `${symbol} added to your watchlist.` };
+  return { success: msg("watchlist.action.added", { symbol }) };
 }
 
 export async function removeFromWatchlist(
@@ -83,17 +88,17 @@ export async function removeFromWatchlist(
   formData: FormData,
 ): Promise<ActionState> {
   const userId = await getSessionUserId();
-  if (!userId) return { error: "Sign in to manage your watchlist." };
+  if (!userId) return { error: msg("watchlist.action.signInRequired") };
 
   const symbol = normalizeSymbol(String(formData.get("symbol") ?? ""));
-  if (!symbol) return { error: "Unknown ticker." };
+  if (!symbol) return { error: msg("watchlist.action.unknownTicker") };
 
   // Scoped by userId so one user cannot delete another's entry.
   await prisma.watchlistItem.deleteMany({ where: { userId, symbol } });
   await prisma.holding.deleteMany({ where: { userId, symbol } });
 
   revalidatePath("/watchlist");
-  return { success: `${symbol} removed.` };
+  return { success: msg("watchlist.action.removed", { symbol }) };
 }
 
 const thresholdSchema = z.object({
@@ -106,18 +111,18 @@ export async function updateThreshold(
   formData: FormData,
 ): Promise<ActionState> {
   const userId = await getSessionUserId();
-  if (!userId) return { error: "Sign in to manage your watchlist." };
+  if (!userId) return { error: msg("watchlist.action.signInRequired") };
 
   const parsed = thresholdSchema.safeParse({
     symbol: formData.get("symbol"),
     zScoreThreshold: formData.get("zScoreThreshold"),
   });
   if (!parsed.success) {
-    return { error: "The alert threshold must be between 0.5 and 6." };
+    return { error: msg("watchlist.action.thresholdRange") };
   }
 
   const symbol = normalizeSymbol(parsed.data.symbol);
-  if (!symbol) return { error: "Unknown ticker." };
+  if (!symbol) return { error: msg("watchlist.action.unknownTicker") };
 
   await prisma.watchlistItem.updateMany({
     where: { userId, symbol },
@@ -125,7 +130,7 @@ export async function updateThreshold(
   });
 
   revalidatePath("/watchlist");
-  return { success: "Alert threshold updated." };
+  return { success: msg("watchlist.action.thresholdUpdated") };
 }
 
 export async function markNotificationsRead(): Promise<void> {

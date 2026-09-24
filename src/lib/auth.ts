@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Minimal session authentication.
@@ -117,15 +118,15 @@ export async function getCurrentUser() {
   });
 }
 
-/** Password policy, applied at registration. */
-export function validatePassword(password: string): string | null {
+/** Password policy, applied at registration. Returns a translation key. */
+export function validatePassword(password: string): TranslationKey | null {
   if (password.length < 10) {
-    return "Use at least 10 characters. Length matters more than symbols.";
+    return "auth.error.passwordTooShort";
   }
   if (password.length > 200) {
     // Bounded because scrypt cost scales with input and an unbounded password
     // is a cheap way to make the server do expensive work.
-    return "That password is too long.";
+    return "auth.error.passwordTooLong";
   }
   return null;
 }

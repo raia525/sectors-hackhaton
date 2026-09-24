@@ -1,6 +1,7 @@
 import { analyzeSymbol, AnalysisError } from "@/lib/analysis/service";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getTranslator } from "@/lib/i18n/server";
 import { AttributionBar } from "./AttributionBar";
 import { DivergenceChart } from "./DivergenceChart";
 import { TwinComposition } from "./TwinComposition";
@@ -10,6 +11,7 @@ import { CorporateActionsPanel } from "./CorporateActionsPanel";
 import { SeasonalityPanel } from "./SeasonalityPanel";
 import { SmartMoneyPanel } from "./SmartMoneyPanel";
 import { Card, CardHeader, Caveats, EmptyState } from "./ui/primitives";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Server component that runs a full analysis and lays out the result.
@@ -21,6 +23,8 @@ import { Card, CardHeader, Caveats, EmptyState } from "./ui/primitives";
  */
 
 export async function AnalysisView({ symbol }: { symbol: string }) {
+  const { t, tm } = await getTranslator();
+
   // A signed-in user's holding lets corporate actions be shown in rupiah. The
   // lookup is skipped entirely for anonymous visitors, who have no position.
   const position = await loadPosition(symbol);
@@ -46,7 +50,8 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
         </div>
         {shadow.asOf ? (
           <p className="tnum text-xs text-text-subtle">
-            As of {shadow.asOf} &middot; {shadow.fitWindow} sessions
+            {t("analysis.asOf", { date: shadow.asOf })} &middot;{" "}
+            {t("analysis.sessions", { count: shadow.fitWindow })}
           </p>
         ) : null}
       </div>
@@ -59,8 +64,8 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
 
           <Card>
             <CardHeader
-              title="Actual against its twin"
-              description="Cumulative return of the stock compared with a portfolio of its closest peers."
+              title={t("analysis.attributionTitle")}
+              description={t("analysis.attributionDescription")}
             />
             <DivergenceChart series={shadow.series} symbol={result.symbol} />
           </Card>
@@ -68,16 +73,16 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader
-                title="Where the move came from"
-                description="The total return split into what the market, the peers, and the company itself explain."
+                title={t("analysis.breakdownTitle")}
+                description={t("analysis.breakdownDescription")}
               />
               <AttributionBar attribution={shadow.attribution} />
             </Card>
 
             <Card>
               <CardHeader
-                title="What the twin is made of"
-                description="Every peer, its weight, and why it qualified."
+                title={t("analysis.twinTitle")}
+                description={t("analysis.twinDescription")}
               />
               <TwinComposition constituents={shadow.constituents} />
             </Card>
@@ -85,18 +90,17 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
         </>
       ) : (
         <EmptyState
-          title={`No reliable twin could be built for ${result.symbol}`}
+          title={t("analysis.noTwinTitle", { symbol: result.symbol })}
           description={
-            shadow.warnings[0] ??
-            "There was not enough comparable data to construct a synthetic twin."
+            shadow.warnings[0] ? tm(shadow.warnings[0]) : t("analysis.noTwinFallback")
           }
         />
       )}
 
       <Card>
         <CardHeader
-          title="Key statistics"
-          description="Valuation, performance, and income figures for this company."
+          title={t("analysis.keyStatsTitle")}
+          description={t("analysis.keyStatsDescription")}
         />
         <KeyStatsPanel stats={result.keyStats} />
       </Card>
@@ -104,8 +108,8 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader
-            title="Corporate actions"
-            description="Dividends, splits, and meetings, with what each does to a holding."
+            title={t("analysis.actionsTitle")}
+            description={t("analysis.actionsDescription")}
           />
           <CorporateActionsPanel
             items={result.corporateActions}
@@ -116,8 +120,8 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
 
         <Card>
           <CardHeader
-            title="Seasonality"
-            description="How this stock has behaved by calendar month, with the years behind each figure."
+            title={t("analysis.seasonalityTitle")}
+            description={t("analysis.seasonalityDescription")}
           />
           <SeasonalityPanel data={result.seasonality} />
         </Card>
@@ -126,17 +130,20 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
       {result.smartMoney ? (
         <Card>
           <CardHeader
-            title="Smart money positioning"
-            description="Whether institutional and foreign money is moving with the price or against it."
+            title={t("analysis.smartMoneyTitle")}
+            description={t("analysis.smartMoneyDescription")}
           />
           <SmartMoneyPanel signal={result.smartMoney} />
         </Card>
       ) : null}
 
-      <Caveats items={realityCheck.caveats} />
+      <Caveats
+        items={realityCheck.caveats.map((c) => tm(c))}
+        title={t("analysis.whatThisDoesNotTellYou")}
+      />
 
       {notices.length > 0 ? (
-        <Caveats items={notices} title="Data notes" />
+        <Caveats items={notices.map((n) => tm(n))} title={t("analysis.dataNotes")} />
       ) : null}
     </div>
   );
@@ -165,27 +172,32 @@ async function loadPosition(
   }
 }
 
-function AnalysisFailure({ error, symbol }: { error: unknown; symbol: string }) {
+async function AnalysisFailure({ error, symbol }: { error: unknown; symbol: string }) {
+  const { t } = await getTranslator();
+
   if (error instanceof AnalysisError) {
-    const guidance: Record<AnalysisError["code"], string> = {
-      invalid_symbol: "Check the ticker and try again.",
-      no_data:
-        "This ticker may be newly listed or suspended. Try a stock with a longer trading history.",
-      credits_exhausted:
-        "The Sectors API credit budget for this build has been spent. Cached analyses are still available.",
-      upstream:
-        "The Sectors API did not return data for this ticker. This is usually temporary.",
+    const guidanceKey: Record<AnalysisError["code"], TranslationKey> = {
+      invalid_symbol: "analysis.error.invalidSymbol",
+      no_data: "analysis.error.noData",
+      credits_exhausted: "analysis.error.creditsExhausted",
+      upstream: "analysis.error.upstream",
     };
 
+    // The title names the ticker and that analysis failed; the wording for
+    // each failure kind is translated rather than reusing the raw
+    // Error.message, which is written for logs, not for a viewer.
     return (
-      <EmptyState title={error.message} description={guidance[error.code]} />
+      <EmptyState
+        title={t("analysis.error.genericTitle", { symbol: symbol.toUpperCase() })}
+        description={t(guidanceKey[error.code])}
+      />
     );
   }
 
   return (
     <EmptyState
-      title={`Could not analyse ${symbol.toUpperCase()}`}
-      description="Something went wrong while building the analysis. Try again in a moment."
+      title={t("analysis.error.genericTitle", { symbol: symbol.toUpperCase() })}
+      description={t("analysis.error.generic")}
     />
   );
 }

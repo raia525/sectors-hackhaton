@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { ShadowPoint } from "@/lib/shadow/types";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
  * Actual cumulative return against its synthetic twin, with the gap shaded.
@@ -25,13 +26,12 @@ const PAD = { top: 16, right: 12, bottom: 22, left: 44 };
 
 export function DivergenceChart({ series, symbol, height = 260 }: Props) {
   const clipId = useId();
+  const { t } = useTranslation();
 
   if (series.length < 2) {
     return (
       <div className="flex h-[260px] items-center justify-center rounded-[10px] border border-dashed border-border-strong">
-        <p className="text-sm text-text-muted">
-          Not enough overlapping history to plot a twin.
-        </p>
+        <p className="text-sm text-text-muted">{t("chart.notEnoughHistory")}</p>
       </div>
     );
   }
@@ -77,7 +77,12 @@ export function DivergenceChart({ series, symbol, height = 260 }: Props) {
         viewBox={`0 0 ${width} ${height}`}
         className="h-auto w-full"
         role="img"
-        aria-label={`Cumulative return of ${symbol} against its synthetic twin. The twin ends at ${(last.shadow * 100).toFixed(1)} percent and ${symbol} ends at ${(last.actual * 100).toFixed(1)} percent, a gap of ${(last.divergence * 100).toFixed(1)} percentage points.`}
+        aria-label={t("chart.ariaLabel", {
+          symbol,
+          twinPct: (last.shadow * 100).toFixed(1),
+          actualPct: (last.actual * 100).toFixed(1),
+          gapPct: (last.divergence * 100).toFixed(1),
+        })}
       >
         <defs>
           <clipPath id={clipId}>
@@ -169,7 +174,7 @@ export function DivergenceChart({ series, symbol, height = 260 }: Props) {
       <figcaption className="mt-3 flex flex-wrap items-center gap-4 text-xs text-text-muted">
         <span className="flex items-center gap-2">
           <span aria-hidden className="h-0.5 w-5 rounded" style={{ background: "var(--accent)" }} />
-          {symbol} actual
+          {t("chart.actual", { symbol })}
         </span>
         <span className="flex items-center gap-2">
           <span
@@ -180,11 +185,9 @@ export function DivergenceChart({ series, symbol, height = 260 }: Props) {
                 "repeating-linear-gradient(to right, var(--text-subtle) 0 4px, transparent 4px 7px)",
             }}
           />
-          Synthetic twin
+          {t("chart.syntheticTwin")}
         </span>
-        <span className="text-text-subtle">
-          Shaded area is the divergence between them
-        </span>
+        <span className="text-text-subtle">{t("chart.divergenceCaption")}</span>
       </figcaption>
     </figure>
   );

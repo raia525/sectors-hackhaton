@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReturnAttribution } from "@/lib/shadow/types";
 import { formatPercent } from "./ui/primitives";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
  * The product's central chart: a stock's move split into what the market
@@ -28,23 +31,25 @@ interface Row {
 }
 
 export function AttributionBar({ attribution }: Props) {
+  const { t } = useTranslation();
+
   const rows: Row[] = [
     {
-      label: "Market",
+      label: t("attribution.market"),
       value: attribution.market,
-      description: "Explained by IHSG, scaled by this stock's beta",
+      description: t("attribution.marketDescription"),
       emphasis: false,
     },
     {
-      label: "Sector and peers",
+      label: t("attribution.sector"),
       value: attribution.sector,
-      description: "Explained by the synthetic twin, beyond the market",
+      description: t("attribution.sectorDescription"),
       emphasis: false,
     },
     {
-      label: "Stock specific",
+      label: t("attribution.specific"),
       value: attribution.idiosyncratic,
-      description: "Unexplained by either. This is the signal",
+      description: t("attribution.specificDescription"),
       emphasis: true,
     },
   ];
@@ -60,7 +65,7 @@ export function AttributionBar({ attribution }: Props) {
     <div>
       <div className="mb-4 flex items-baseline justify-between">
         <span className="text-[11px] uppercase tracking-wide text-text-subtle">
-          Total return over window
+          {t("attribution.totalReturn")}
         </span>
         <span
           className={`tnum text-lg ${attribution.total >= 0 ? "text-up" : "text-down"}`}
@@ -75,9 +80,7 @@ export function AttributionBar({ attribution }: Props) {
         ))}
       </div>
 
-      <p className="mt-4 text-xs text-text-subtle">
-        The three components sum to the total return by construction.
-      </p>
+      <p className="mt-4 text-xs text-text-subtle">{t("attribution.footnote")}</p>
     </div>
   );
 }

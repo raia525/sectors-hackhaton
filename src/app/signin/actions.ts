@@ -10,6 +10,8 @@ import {
   validatePassword,
   verifyPassword,
 } from "@/lib/auth";
+import { getLocale } from "@/lib/i18n/server";
+import { msg, type Message } from "@/lib/i18n/message";
 
 /**
  * Authentication actions.
@@ -21,12 +23,12 @@ import {
  */
 
 export interface AuthState {
-  error?: string;
+  error?: Message;
 }
 
 const credentialsSchema = z.object({
-  email: z.string().email("Enter a valid email address."),
-  password: z.string().min(1, "Enter your password."),
+  email: z.string().email(),
+  password: z.string().min(1),
   name: z.string().max(100).optional(),
 });
 
@@ -39,7 +41,14 @@ export async function signIn(
     password: formData.get("password"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
+    const issue = parsed.error.issues[0];
+    return {
+      error: msg(
+        issue.path[0] === "password"
+          ? "auth.error.passwordRequired"
+          : "auth.error.invalidEmail",
+      ),
+    };
   }
 
   const user = await prisma.user.findUnique({
@@ -54,7 +63,15 @@ export async function signIn(
   const valid = await verifyPassword(parsed.data.password, stored);
 
   if (!user || !valid) {
-    return { error: "That email and password combination is not recognised." };
+    return { error: msg("auth.error.notRecognised") };
+  }
+
+  // Adopts whatever language the sign-in page was displayed in, so a
+  // scheduled alert lands in the language the viewer was last using rather
+  // than staying pinned to whatever was set at signup.
+  const locale = await getLocale();
+  if (user.locale !== locale) {
+    await prisma.user.update({ where: { id: user.id }, data: { locale } });
   }
 
   await createSession(user.id);
@@ -71,17 +88,24 @@ export async function signUp(
     name: formData.get("name") || undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
+    const issue = parsed.error.issues[0];
+    return {
+      error: msg(
+        issue.path[0] === "password"
+          ? "auth.error.passwordRequired"
+          : "auth.error.invalidEmail",
+      ),
+    };
   }
 
-  const policyError = validatePassword(parsed.data.password);
-  if (policyError) return { error: policyError };
+  const policyErrorKey = validatePassword(parsed.data.password);
+  if (policyErrorKey) return { error: msg(policyErrorKey) };
 
   const email = parsed.data.email.toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     // Deliberately identical in shape to other failures.
-    return { error: "That account could not be created. Try signing in instead." };
+    return { error: msg("auth.error.couldNotCreate") };
   }
 
   const user = await prisma.user.create({
@@ -89,6 +113,7 @@ export async function signUp(
       email,
       passwordHash: await hashPassword(parsed.data.password),
       name: parsed.data.name?.trim() || null,
+      locale: await getLocale(),
     },
   });
 

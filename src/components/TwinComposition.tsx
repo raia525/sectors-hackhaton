@@ -1,4 +1,8 @@
+"use client";
+
 import type { ShadowConstituent } from "@/lib/shadow/types";
+import { useTranslation } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * The stocks making up the synthetic twin, with their weights and the reason
@@ -10,13 +14,13 @@ import type { ShadowConstituent } from "@/lib/shadow/types";
  * set looks wrong to them. An opaque score would have to be taken on trust.
  */
 
-const DIMENSION_LABELS: Record<string, string> = {
-  correlation: "Price correlation",
-  sector: "Sub sector",
-  marketCap: "Market cap",
-  volatility: "Volatility",
-  growth: "Growth",
-  dividend: "Dividend",
+const DIMENSION_KEY: Record<string, TranslationKey> = {
+  correlation: "twin.dimension.correlation",
+  sector: "twin.dimension.sector",
+  marketCap: "twin.dimension.marketCap",
+  volatility: "twin.dimension.volatility",
+  growth: "twin.dimension.growth",
+  dividend: "twin.dimension.dividend",
 };
 
 export function TwinComposition({
@@ -24,12 +28,10 @@ export function TwinComposition({
 }: {
   constituents: ShadowConstituent[];
 }) {
+  const { t } = useTranslation();
+
   if (constituents.length === 0) {
-    return (
-      <p className="text-sm text-text-muted">
-        No peer cleared the similarity threshold, so no twin was constructed.
-      </p>
-    );
+    return <p className="text-sm text-text-muted">{t("twin.noneQualified")}</p>;
   }
 
   return (
@@ -52,7 +54,11 @@ export function TwinComposition({
             <div
               className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-raised"
               role="img"
-              aria-label={`${c.symbol} carries ${(c.weight * 100).toFixed(1)} percent of the twin, with a similarity of ${(c.similarity * 100).toFixed(0)} percent.`}
+              aria-label={t("twin.constituentAriaLabel", {
+                symbol: c.symbol,
+                weightPct: (c.weight * 100).toFixed(1),
+                similarityPct: (c.similarity * 100).toFixed(0),
+              })}
             >
               <div
                 aria-hidden
@@ -62,20 +68,17 @@ export function TwinComposition({
             </div>
 
             <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-subtle">
-              <span>similarity {(c.similarity * 100).toFixed(0)}%</span>
-              <span>correlation {c.correlation.toFixed(2)}</span>
+              <span>{t("twin.similarity", { value: `${(c.similarity * 100).toFixed(0)}%` })}</span>
+              <span>{t("twin.correlation", { value: c.correlation.toFixed(2) })}</span>
               {topDimensions(c).map((d) => (
-                <span key={d}>{DIMENSION_LABELS[d] ?? d}</span>
+                <span key={d}>{t(DIMENSION_KEY[d] ?? "twin.dimension.correlation")}</span>
               ))}
             </div>
           </li>
         ))}
       </ul>
 
-      <p className="text-xs text-text-subtle">
-        Weights are proportional to squared similarity, then rescaled so the twin
-        matches the target&apos;s volatility.
-      </p>
+      <p className="text-xs text-text-subtle">{t("twin.weightFootnote")}</p>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { NewsItem } from "@/lib/sectors/schemas";
 import type { ShadowAnalysis } from "@/lib/shadow/types";
+import { msg, type Message } from "@/lib/i18n/message";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Reality check: does the story match the tape?
@@ -42,9 +44,9 @@ export interface RealityCheck {
     fitQuality: number;
   };
   /** Plain-language statements, each traceable to a number above. */
-  findings: string[];
+  findings: Message[];
   /** Explicit limits of this analysis, always shown alongside the verdict. */
-  caveats: string[];
+  caveats: Message[];
 }
 
 /**
@@ -104,6 +106,13 @@ const MIN_ARTICLES = 3;
 /** Idiosyncratic z-score beyond which price is considered to be "saying something". */
 const PRICE_SIGNAL_Z = 1.5;
 
+const TONE_KEY: Record<NarrativeTone, TranslationKey> = {
+  positive: "reality.tone.positive",
+  negative: "reality.tone.negative",
+  mixed: "reality.tone.mixed",
+  quiet: "reality.tone.quiet",
+};
+
 export function runRealityCheck(
   shadow: ShadowAnalysis,
   news: NewsItem[],
@@ -125,8 +134,8 @@ export function runRealityCheck(
   const priceDirection = shadow.attribution.idiosyncratic >= 0 ? 1 : -1;
   const toneDirection = tone === "positive" ? 1 : tone === "negative" ? -1 : 0;
 
-  const findings: string[] = [];
-  const caveats: string[] = [];
+  const findings: Message[] = [];
+  const caveats: Message[] = [];
 
   let verdict: AlignmentVerdict;
   if (news.length < MIN_ARTICLES && !priceSignal) {
@@ -148,34 +157,37 @@ export function runRealityCheck(
   const sectorPct = (shadow.attribution.sector * 100).toFixed(2);
 
   findings.push(
-    `Of the total move, ${marketPct}% traces to the market, ${sectorPct}% to comparable companies, and ${idioPct}% is specific to ${shadow.symbol}.`,
+    msg("reality.attribution", {
+      marketPct,
+      sectorPct,
+      idioPct,
+      symbol: shadow.symbol,
+    }),
   );
+
+  // The tone word is itself translated (positive/negative/...), so it travels
+  // as a nested Message rather than a raw string; renderMessage resolves it
+  // in the viewer's locale before the outer sentence is assembled.
+  const toneMessage = msg(TONE_KEY[tone]);
+  const zFormatted = z.toFixed(2);
 
   switch (verdict) {
     case "confirmed":
-      findings.push(
-        `Coverage leans ${tone} and the stock-specific move runs the same way (z = ${z.toFixed(2)}). The two independent signals agree.`,
-      );
+      findings.push(msg("reality.confirmed", { tone: toneMessage, z: zFormatted }));
       break;
     case "contradiction":
-      findings.push(
-        `Coverage leans ${tone}, but the stock-specific move runs the opposite way (z = ${z.toFixed(2)}). One of the two is wrong, and the disagreement itself is the signal.`,
-      );
+      findings.push(msg("reality.contradiction", { tone: toneMessage, z: zFormatted }));
       break;
     case "narrative_ahead_of_price":
       findings.push(
-        `Coverage leans ${tone}, yet the price is doing nothing its peers are not already doing (z = ${z.toFixed(2)}). The story is not visible in the tape.`,
+        msg("reality.narrativeAhead", { tone: toneMessage, z: zFormatted }),
       );
       break;
     case "price_ahead_of_narrative":
-      findings.push(
-        `The stock is making a move its peers do not explain (z = ${z.toFixed(2)}) while coverage is ${tone}. Price is moving before the story is public.`,
-      );
+      findings.push(msg("reality.priceAhead", { tone: toneMessage, z: zFormatted }));
       break;
     case "insufficient_evidence":
-      findings.push(
-        "Neither coverage nor price movement is strong enough to support a conclusion. No signal is the honest answer here.",
-      );
+      findings.push(msg("reality.insufficient"));
       break;
   }
 
@@ -191,20 +203,19 @@ export function runRealityCheck(
     confidence = "low";
   }
 
-  caveats.push(
-    "Tone is measured with a keyword lexicon, not a language model. It detects wording, not meaning, and will misread sarcasm, negation, and quoted claims.",
-  );
-  caveats.push(
-    "This compares what has already happened in news and price. It is not a forecast, and it is not investment advice.",
-  );
+  caveats.push(msg("reality.caveat.lexicon"));
+  caveats.push(msg("reality.caveat.notAdvice"));
   if (shadow.fitQuality < 0.5) {
     caveats.push(
-      `The synthetic twin explains ${(shadow.fitQuality * 100).toFixed(0)}% of price variation, so the stock-specific figure carries real uncertainty.`,
+      msg("reality.caveat.weakFit", { percent: (shadow.fitQuality * 100).toFixed(0) }),
     );
   }
   if (news.length < 8) {
     caveats.push(
-      `Only ${news.length} article${news.length === 1 ? "" : "s"} in the window; tone is easily skewed by a single outlet.`,
+      msg("reality.caveat.fewArticles", {
+        count: news.length,
+        plural: news.length === 1 ? "" : "s",
+      }),
     );
   }
   for (const warning of shadow.warnings) caveats.push(warning);

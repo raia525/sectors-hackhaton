@@ -1,5 +1,6 @@
 import { clamp } from "@/lib/shadow/stats";
 import type { DailyBar } from "@/lib/shadow/types";
+import { msg, type Message } from "@/lib/i18n/message";
 import type {
   DivergenceType,
   FlowDirection,
@@ -201,8 +202,8 @@ export interface SmartMoneyInput {
 
 export function analyzeSmartMoney(input: SmartMoneyInput): SmartMoneySignal {
   const { symbol, bars, foreignFlow, ownership } = input;
-  const caveats: string[] = [];
-  const findings: string[] = [];
+  const caveats: Message[] = [];
+  const findings: Message[] = [];
 
   const sortedBars = [...bars].sort((a, b) => a.date.localeCompare(b.date));
   const first = sortedBars[0];
@@ -218,9 +219,7 @@ export function analyzeSmartMoney(input: SmartMoneyInput): SmartMoneySignal {
     (foreignFlow.length < MIN_FLOW_SESSIONS && ownershipShift === null);
 
   if (insufficientData) {
-    caveats.push(
-      "Not enough flow or ownership history to score positioning. No signal is reported rather than a weak guess.",
-    );
+    caveats.push(msg("smartmoney.caveat.insufficientData"));
     return {
       symbol,
       asOf: last?.date ?? "",
@@ -238,60 +237,43 @@ export function analyzeSmartMoney(input: SmartMoneyInput): SmartMoneySignal {
   const type = classifyDivergence(priceReturn, flow.direction, ownershipShift?.direction ?? null);
   const conviction = computeConviction(type, flow, ownershipShift, priceReturn);
 
-  const pricePct = (priceReturn * 100).toFixed(2);
-  const flowBn = (flow.netIdr / 1_000_000_000).toFixed(1);
-
+  // Raw numbers travel in the message params; the render layer formats them
+  // (currency, percent) in the viewer's locale rather than the engine baking
+  // in an English-formatted string.
   findings.push(
-    `Over the window the price moved ${pricePct}% while net foreign flow was ${flowBn} billion IDR, ${(flow.intensity * 100).toFixed(2)}% of traded value.`,
+    msg("smartmoney.summaryLine", {
+      priceReturn,
+      flowValue: flow.netIdr,
+      flowIntensity: flow.intensity,
+    }),
   );
 
   if (ownershipShift) {
     findings.push(
-      `Institutional ownership changed by ${ownershipShift.shareChangePp.toFixed(2)} percentage points across ${ownershipShift.months} monthly snapshots, while retail changed by ${ownershipShift.retailShareChangePp.toFixed(2)}.`,
+      msg("smartmoney.ownershipLine", {
+        shareChange: ownershipShift.shareChangePp.toFixed(2),
+        months: ownershipShift.months,
+        retailChange: ownershipShift.retailShareChangePp.toFixed(2),
+      }),
     );
   }
 
-  switch (type) {
-    case "bullish_divergence":
-      findings.push(
-        "Price fell while institutional and foreign money accumulated. Someone is buying what the market is selling.",
-      );
-      break;
-    case "bearish_divergence":
-      findings.push(
-        "Price rose while institutional and foreign money reduced exposure. The rally is being sold into.",
-      );
-      break;
-    case "confirmation_up":
-      findings.push(
-        "Price and smart money both point up, so positioning agrees with the move rather than contradicting it.",
-      );
-      break;
-    case "confirmation_down":
-      findings.push(
-        "Price and smart money both point down; the decline is backed by real outflows, not thin trading.",
-      );
-      break;
-    case "no_signal":
-      findings.push(
-        "Positioning and price are not far enough apart to call a divergence.",
-      );
-      break;
-  }
+  const typeMessageKey = {
+    bullish_divergence: "smartmoney.meaning.bullish",
+    bearish_divergence: "smartmoney.meaning.bearish",
+    confirmation_up: "smartmoney.meaning.confirmedUp",
+    confirmation_down: "smartmoney.meaning.confirmedDown",
+    no_signal: "smartmoney.meaning.none",
+  } as const;
+  findings.push(msg(typeMessageKey[type]));
 
-  caveats.push(
-    "Positioning is measured from foreign flow and institutional ownership categories. It does not include director or commissioner dealings, which this data source does not publish.",
-  );
-  caveats.push(
-    "Conviction scores the strength of the observed disagreement, not the probability of a future return. These thresholds are stated assumptions, not backtested parameters.",
-  );
+  caveats.push(msg("smartmoney.caveat.scope"));
+  caveats.push(msg("smartmoney.caveat.notForecast"));
   if (ownershipShift === null) {
-    caveats.push(
-      "No usable ownership snapshots, so the signal rests on foreign flow alone.",
-    );
+    caveats.push(msg("smartmoney.caveat.flowOnly"));
   }
   if (flow.streak <= 2 && ownershipShift === null) {
-    caveats.push("Flow direction is not persistent, so it may be a single large trade.");
+    caveats.push(msg("smartmoney.caveat.notPersistent"));
   }
 
   return {

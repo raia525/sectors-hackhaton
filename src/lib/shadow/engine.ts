@@ -1,4 +1,5 @@
 import { scorePeer, selectPeers } from "./similarity";
+import { msg, type Message } from "@/lib/i18n/message";
 import {
   beta,
   clamp,
@@ -196,7 +197,7 @@ export function classifyDivergence(z: number): DivergenceVerdict {
  */
 export function buildShadow(input: ShadowInput): ShadowAnalysis {
   const { target, candidates, marketBars, maxPeers = 8, minSimilarity = 0.35 } = input;
-  const warnings: string[] = [];
+  const warnings: Message[] = [];
 
   const aligned = alignSeries([
     { key: "__target__", bars: target.bars },
@@ -208,7 +209,10 @@ export function buildShadow(input: ShadowInput): ShadowAnalysis {
   if (targetCloses.length < MIN_OBSERVATIONS) {
     return emptyAnalysis(
       target.profile,
-      `Insufficient overlapping price history (${targetCloses.length} of ${MIN_OBSERVATIONS} sessions required).`,
+      msg("shadow.warning.insufficientHistory", {
+        available: targetCloses.length,
+        required: MIN_OBSERVATIONS,
+      }),
     );
   }
 
@@ -227,14 +231,14 @@ export function buildShadow(input: ShadowInput): ShadowAnalysis {
 
   const selected = selectPeers(scored, { maxPeers, minSimilarity });
   if (selected.length === 0) {
-    return emptyAnalysis(
-      target.profile,
-      "No peer cleared the similarity threshold, so no reliable twin could be built.",
-    );
+    return emptyAnalysis(target.profile, msg("shadow.warning.noPeerQualified"));
   }
   if (selected.length < 3) {
     warnings.push(
-      `Twin built from only ${selected.length} peer${selected.length === 1 ? "" : "s"}; divergence is less reliable than usual.`,
+      msg("shadow.warning.fewPeers", {
+        count: selected.length,
+        plural: selected.length === 1 ? "" : "s",
+      }),
     );
   }
 
@@ -255,7 +259,7 @@ export function buildShadow(input: ShadowInput): ShadowAnalysis {
   const fitQuality = rSquared(targetReturns, shadowReturns);
   if (fitQuality < 0.3) {
     warnings.push(
-      `Twin explains only ${(fitQuality * 100).toFixed(0)}% of price variation; treat the divergence as indicative, not conclusive.`,
+      msg("shadow.warning.weakFit", { percent: (fitQuality * 100).toFixed(0) }),
     );
   }
 
@@ -266,7 +270,7 @@ export function buildShadow(input: ShadowInput): ShadowAnalysis {
   const history = dailyDivergence.slice(0, -1);
   const z = zScore(latest, history);
   if (history.length < 20) {
-    warnings.push("Fewer than 20 prior sessions; the z-score is reported as zero.");
+    warnings.push(msg("shadow.warning.fewSessions"));
   }
 
   return {
@@ -292,7 +296,7 @@ export function buildShadow(input: ShadowInput): ShadowAnalysis {
   };
 }
 
-function emptyAnalysis(profile: PeerProfile, reason: string): ShadowAnalysis {
+function emptyAnalysis(profile: PeerProfile, reason: Message): ShadowAnalysis {
   return {
     symbol: profile.symbol,
     companyName: profile.companyName,

@@ -1,3 +1,5 @@
+import type { Message } from "@/lib/i18n/message";
+
 /**
  * Domain types for the synthetic twin ("shadow") engine.
  *
@@ -113,5 +115,5 @@ export interface ShadowAnalysis {
    */
   fitQuality: number;
   /** Non-fatal problems encountered while building the shadow. */
-  warnings: string[];
+  warnings: Message[];
 }

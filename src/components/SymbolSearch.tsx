@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { SymbolCombobox, type DirectoryMatch } from "./SymbolCombobox";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
- * Ticker input.
+ * Ticker and company name search.
  *
  * Validation happens here as well as on the server. The client check is purely
  * for feedback speed; the server repeats it because a malformed ticker that
@@ -16,6 +18,7 @@ const SUGGESTIONS = ["BBRI", "BBCA", "TLKM", "ASII", "GOTO"];
 
 export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [value, setValue] = useState(initialSymbol?.toUpperCase() ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -24,7 +27,7 @@ export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
     const symbol = raw.trim().toUpperCase().replace(/\.JK$/, "");
 
     if (!/^[A-Z]{4}$/.test(symbol)) {
-      setError("An IDX ticker is four letters, for example BBRI.");
+      setError(t("search.invalidTicker"));
       return;
     }
 
@@ -45,23 +48,20 @@ export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
       >
         <div className="min-w-[200px] flex-1">
           <label htmlFor="symbol" className="sr-only">
-            IDX ticker
+            {t("search.placeholder")}
           </label>
-          <input
+          <SymbolCombobox
             id="symbol"
-            name="symbol"
             value={value}
-            onChange={(e) => {
-              setValue(e.target.value.toUpperCase());
+            onChange={(next) => {
+              setValue(next);
               if (error) setError(null);
             }}
-            placeholder="Enter a ticker, for example BBRI"
-            maxLength={7}
-            autoComplete="off"
-            spellCheck={false}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "symbol-error" : undefined}
-            className="w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+            onSelect={(match: DirectoryMatch) => submit(match.symbol)}
+            placeholder={t("search.placeholder")}
+            inputClassName="w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text placeholder:text-text-subtle focus:border-accent focus:outline-none"
+            invalid={error !== null}
+            describedBy={error ? "symbol-error" : undefined}
           />
         </div>
 
@@ -70,7 +70,7 @@ export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
           disabled={isPending}
           className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
         >
-          {isPending ? "Analysing" : "Analyse"}
+          {isPending ? t("search.analysing") : t("search.button")}
         </button>
       </form>
 
@@ -81,7 +81,7 @@ export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-text-subtle">Try</span>
+        <span className="text-xs text-text-subtle">{t("search.tryLabel")}</span>
         {SUGGESTIONS.map((s) => (
           <button
             key={s}

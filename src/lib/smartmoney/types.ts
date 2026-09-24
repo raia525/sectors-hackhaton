@@ -1,3 +1,5 @@
+import type { Message } from "@/lib/i18n/message";
+
 /**
  * Smart money divergence: detecting when positioning and price disagree.
  *
@@ -81,8 +83,8 @@ export interface SmartMoneySignal {
   foreignFlow: FlowSummary;
   ownership: OwnershipShift | null;
   /** Plain-language statements, each traceable to a figure above. */
-  findings: string[];
-  caveats: string[];
+  findings: Message[];
+  caveats: Message[];
   /** True when inputs were too thin to score, forcing conviction to 0. */
   insufficientData: boolean;
 }

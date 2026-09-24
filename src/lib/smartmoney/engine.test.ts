@@ -201,7 +201,7 @@ describe("analyzeSmartMoney", () => {
 
     expect(result.type).toBe("bullish_divergence");
     expect(result.conviction).toBeGreaterThan(50);
-    expect(result.findings.join(" ")).toMatch(/buying what the market is selling/);
+    expect(result.findings.map((f) => f.key)).toContain("smartmoney.meaning.bullish");
   });
 
   it("refuses to score when history is too thin", () => {
@@ -216,9 +216,11 @@ describe("analyzeSmartMoney", () => {
     expect(result.type).toBe("no_signal");
   });
 
-  it("never claims to observe insider dealings", () => {
-    // The data source has no director-level transactions; saying otherwise
-    // would be a claim the data cannot support.
+  it("scopes itself to flow and ownership data, never insider dealings", () => {
+    // The data source has no director-level transactions; the caveat must say
+    // so explicitly and findings must never claim otherwise. The wording lives
+    // in the dictionary now, so this checks message keys; a companion test in
+    // the i18n suite checks every dictionary entry never contains "insider".
     const b = bars(60, -0.002);
     const tradedValue = b.reduce((s, x) => s + x.close * x.volume, 0);
     const result = analyzeSmartMoney({
@@ -228,9 +230,7 @@ describe("analyzeSmartMoney", () => {
       ownership: ownership(6, 40, 45),
     });
 
-    const text = [...result.findings, ...result.caveats].join(" ").toLowerCase();
-    expect(text).toMatch(/does not include director or commissioner dealings/);
-    expect(result.findings.join(" ").toLowerCase()).not.toMatch(/insider/);
+    expect(result.caveats.map((c) => c.key)).toContain("smartmoney.caveat.scope");
   });
 
   it("states that conviction is not a return forecast", () => {
@@ -242,7 +242,7 @@ describe("analyzeSmartMoney", () => {
       foreignFlow: flow(60, (-tradedValue * 0.05) / 60),
       ownership: ownership(6, 45, 40),
     });
-    expect(result.caveats.join(" ")).toMatch(/not the probability of a future return/);
+    expect(result.caveats.map((c) => c.key)).toContain("smartmoney.caveat.notForecast");
   });
 
   it("falls back to foreign flow alone when ownership is unavailable", () => {
@@ -255,6 +255,6 @@ describe("analyzeSmartMoney", () => {
       ownership: [],
     });
     expect(result.type).toBe("bearish_divergence");
-    expect(result.caveats.join(" ")).toMatch(/foreign flow alone/);
+    expect(result.caveats.map((c) => c.key)).toContain("smartmoney.caveat.flowOnly");
   });
 });

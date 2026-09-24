@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { WatchlistManager } from "@/components/WatchlistManager";
 import { NotificationList } from "@/components/NotificationList";
 import { Card, CardHeader, EmptyState } from "@/components/ui/primitives";
+import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata = {
   title: "Watchlist | SHADOW IDX",
@@ -14,34 +15,34 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function WatchlistPage() {
-  const user = await getCurrentUser();
+  const [user, { t }] = await Promise.all([getCurrentUser(), getTranslator()]);
 
   if (!user) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight text-text">Watchlist</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-text">
+          {t("watchlist.title")}
+        </h1>
         <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-text-muted">
-          Track stocks and receive an alert when one moves beyond what
-          comparable companies explain. Alerts are deliberately rare: a
-          notification people learn to ignore is worse than none at all.
+          {t("watchlist.signedOutDescription")}
         </p>
         <div className="mt-8">
           <EmptyState
-            title="Sign in to build a watchlist"
-            description="Your watchlist, positions, and alert thresholds are stored against your account."
+            title={t("watchlist.signInPrompt")}
+            description={t("watchlist.signInDescription")}
           />
           <div className="mt-4 flex justify-center gap-3">
             <Link
               href="/signin"
               className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
             >
-              Sign in
+              {t("nav.signIn")}
             </Link>
             <Link
               href="/signup"
               className="rounded-full border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
             >
-              Create an account
+              {t("watchlist.createAccount")}
             </Link>
           </div>
         </div>
@@ -69,11 +70,10 @@ export default async function WatchlistPage() {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-xl">
           <h1 className="text-2xl font-semibold tracking-tight text-text">
-            Watchlist
+            {t("watchlist.title")}
           </h1>
           <p className="mt-2 text-[15px] leading-relaxed text-text-muted">
-            You are alerted when a stock moves beyond what comparable companies
-            explain, not when it simply moves. Set the bar per stock.
+            {t("watchlist.description")}
           </p>
         </div>
         <p className="text-sm text-text-subtle">{user.email}</p>
@@ -82,8 +82,8 @@ export default async function WatchlistPage() {
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <Card>
           <CardHeader
-            title="Tracked stocks"
-            description="Each stock carries its own alert threshold, measured in standard deviations of its own divergence history."
+            title={t("watchlist.trackedTitle")}
+            description={t("watchlist.trackedDescription")}
           />
           <WatchlistManager
             items={items.map((item) => ({
@@ -102,8 +102,8 @@ export default async function WatchlistPage() {
 
         <Card>
           <CardHeader
-            title="Recent alerts"
-            description="Alerts are rate limited, so a stock parked above its threshold produces one notification rather than one per run."
+            title={t("watchlist.alertsTitle")}
+            description={t("watchlist.alertsDescription")}
           />
           <NotificationList
             notifications={notifications.map((n) => ({

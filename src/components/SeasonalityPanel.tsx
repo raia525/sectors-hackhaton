@@ -1,5 +1,8 @@
+"use client";
+
 import type { MonthStat, SeasonalityResult } from "@/lib/analysis/seasonality";
 import { formatPercent } from "./ui/primitives";
+import { useTranslation } from "@/lib/i18n/client";
 
 /**
  * Monthly seasonality.
@@ -15,12 +18,10 @@ import { formatPercent } from "./ui/primitives";
  */
 
 export function SeasonalityPanel({ data }: { data: SeasonalityResult }) {
+  const { t, tm } = useTranslation();
+
   if (data.months.length === 0) {
-    return (
-      <p className="text-sm text-text-muted">
-        Not enough price history to compute monthly statistics.
-      </p>
-    );
+    return <p className="text-sm text-text-muted">{t("seasonality.notEnoughHistory")}</p>;
   }
 
   const scale = Math.max(
@@ -38,17 +39,20 @@ export function SeasonalityPanel({ data }: { data: SeasonalityResult }) {
 
       {data.best && data.worst && data.best.month !== data.worst.month ? (
         <p className="text-sm text-text-muted">
-          Across {data.totalYears} years of history, {data.best.label} has been
-          the strongest month at {formatPercent(data.best.averageReturn)} on
-          average and {data.worst.label} the weakest at{" "}
-          {formatPercent(data.worst.averageReturn)}.
+          {t("seasonality.summary", {
+            years: data.totalYears,
+            best: t(data.best.labelKey),
+            bestReturn: formatPercent(data.best.averageReturn),
+            worst: t(data.worst.labelKey),
+            worstReturn: formatPercent(data.worst.averageReturn),
+          })}
         </p>
       ) : null}
 
       <ul className="space-y-1">
         {data.caveats.map((caveat, i) => (
           <li key={i} className="text-xs leading-relaxed text-text-subtle">
-            {caveat}
+            {tm(caveat)}
           </li>
         ))}
       </ul>
@@ -57,22 +61,33 @@ export function SeasonalityPanel({ data }: { data: SeasonalityResult }) {
 }
 
 function MonthRow({ month, scale }: { month: MonthStat; scale: number }) {
+  const { t } = useTranslation();
   const magnitude = Math.min(Math.abs(month.averageReturn) / scale, 1);
   const widthPct = magnitude * 50;
   const positive = month.averageReturn >= 0;
+  const monthLabel = t(month.labelKey);
 
   return (
     <div className="flex items-center gap-3">
       <span
         className={`w-8 shrink-0 text-xs ${month.reliable ? "text-text-muted" : "text-text-subtle"}`}
       >
-        {month.label.slice(0, 3)}
+        {monthLabel.slice(0, 3)}
       </span>
 
       <div
         className="relative h-3 flex-1 rounded bg-surface-raised"
         role="img"
-        aria-label={`${month.label}: average ${formatPercent(month.averageReturn)} across ${month.years} ${month.years === 1 ? "year" : "years"}, positive in ${(month.hitRate * 100).toFixed(0)} percent of them.${month.reliable ? "" : " Too few years to describe as a tendency."}`}
+        aria-label={t("seasonality.monthAriaLabel", {
+          month: monthLabel,
+          avgReturn: formatPercent(month.averageReturn),
+          years: month.years,
+          yearLabel: t(
+            month.years === 1 ? "seasonality.year.singular" : "seasonality.year.plural",
+          ),
+          hitRate: (month.hitRate * 100).toFixed(0),
+          reliabilityNote: month.reliable ? "" : t("seasonality.tooFewYears"),
+        })}
       >
         <div
           aria-hidden
@@ -99,7 +114,10 @@ function MonthRow({ month, scale }: { month: MonthStat; scale: number }) {
       </span>
 
       <span className="tnum w-16 shrink-0 text-right text-[11px] text-text-subtle">
-        {(month.hitRate * 100).toFixed(0)}% of {month.years}
+        {t("seasonality.hitRateOf", {
+          percent: (month.hitRate * 100).toFixed(0),
+          years: month.years,
+        })}
         {month.reliable ? "" : "*"}
       </span>
     </div>

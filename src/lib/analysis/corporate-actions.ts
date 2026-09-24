@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { corporateActionsSchema } from "@/lib/sectors/schemas";
+import { msg, type Message } from "@/lib/i18n/message";
+import { formatIdr } from "@/lib/format";
 
 /**
  * Corporate actions translated into their effect on a position.
@@ -27,10 +29,10 @@ export interface CorporateActionItem {
   timing: ActionTiming;
   date: string;
   /** One line stating what happens, written for a holder. */
-  summary: string;
+  summary: Message;
   /** Effect on the user's position, present only when they hold the stock. */
   effect: PositionEffect | null;
-  detail: string | null;
+  detail: Message | null;
 }
 
 export interface Position {
@@ -75,14 +77,14 @@ export function summarizeCorporateActions(
       date,
       summary:
         amount !== null
-          ? `Dividend of ${formatRupiah(amount)} per share`
-          : "Dividend announced",
+          ? msg("actions.dividendSummary", { amount: formatIdr(amount) })
+          : msg("actions.dividendAnnounced"),
       effect:
         cash !== null
           ? { cashIdr: cash, sharesAfter: null, adjustedAvgPrice: null }
           : null,
       detail: dividend.ex_date
-        ? `Ex date ${dividend.ex_date}. Shares must be held before this date to qualify.`
+        ? msg("actions.exDateDetail", { date: dividend.ex_date })
         : null,
     });
   }
@@ -104,14 +106,13 @@ export function summarizeCorporateActions(
       date: split.date,
       summary:
         ratio > 1
-          ? `Stock split, ${ratio}:1`
-          : `Reverse split, 1:${(1 / ratio).toFixed(0)}`,
+          ? msg("actions.splitSummary", { ratio })
+          : msg("actions.reverseSplitSummary", { ratio: (1 / ratio).toFixed(0) }),
       effect:
         sharesAfter !== null
           ? { cashIdr: null, sharesAfter, adjustedAvgPrice: adjusted }
           : null,
-      detail:
-        "The total value of the position does not change. Share count and cost per share move in opposite directions.",
+      detail: msg("actions.splitDetail"),
     });
   }
 
@@ -121,9 +122,12 @@ export function summarizeCorporateActions(
       kind: "agm",
       timing: classify(agm.agm_date, today),
       date: agm.agm_date,
-      summary: "General meeting of shareholders",
+      summary: msg("actions.agmSummary"),
       effect: null,
-      detail: agm.agm_result ?? null,
+      // agm_result is free text supplied directly by the exchange filing, not
+      // one of our own sentences, so it is not translatable and passes
+      // through as-is rather than through the Message system.
+      detail: agm.agm_result ? msg("actions.freeTextDetail", { text: agm.agm_result }) : null,
     });
   }
 
@@ -148,8 +152,4 @@ function classify(date: string, today: Date): ActionTiming {
   const parsed = Date.parse(`${date}T00:00:00Z`);
   if (Number.isNaN(parsed)) return "recent";
   return parsed >= today.getTime() ? "upcoming" : "recent";
-}
-
-function formatRupiah(value: number): string {
-  return `Rp ${value.toLocaleString("id-ID", { maximumFractionDigits: 2 })}`;
 }

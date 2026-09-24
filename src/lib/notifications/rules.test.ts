@@ -10,6 +10,7 @@ import {
 import type { ShadowAnalysis } from "@/lib/shadow/types";
 import type { RealityCheck } from "@/lib/analysis/reality-check";
 import type { CorporateActionItem } from "@/lib/analysis/corporate-actions";
+import { msg } from "@/lib/i18n/message";
 
 const NOW = new Date("2025-06-15T09:00:00Z");
 
@@ -70,7 +71,8 @@ describe("evaluateDivergenceAlert", () => {
     const alert = evaluateDivergenceAlert(state(), shadow(), reality(), NOW);
     expect(alert).not.toBeNull();
     expect(alert!.kind).toBe("DIVERGENCE");
-    expect(alert!.title).toMatch(/BBRI is trading .* above its twin/);
+    expect(alert!.title.key).toBe("alert.divergenceTitle");
+    expect(alert!.title.params?.direction).toEqual(msg("alert.direction.above"));
   });
 
   it("stays silent below the threshold", () => {
@@ -144,12 +146,12 @@ describe("evaluateDivergenceAlert", () => {
       reality(),
       NOW,
     );
-    expect(alert!.title).toMatch(/below its twin/);
+    expect(alert!.title.params?.direction).toEqual(msg("alert.direction.below"));
   });
 
   it("tells the reader whether news explains the move", () => {
     const unexplained = evaluateDivergenceAlert(state(), shadow(), reality(), NOW);
-    expect(unexplained!.body).toMatch(/price is moving before the story/);
+    expect(unexplained!.body.map((m) => m.key)).toContain("alert.reality.priceAhead");
 
     const contradicted = evaluateDivergenceAlert(
       state(),
@@ -157,12 +159,13 @@ describe("evaluateDivergenceAlert", () => {
       reality({ verdict: "contradiction" }),
       NOW,
     );
-    expect(contradicted!.body).toMatch(/story and the tape disagree/);
+    expect(contradicted!.body.map((m) => m.key)).toContain("alert.reality.contradiction");
   });
 
   it("always includes the fit so the alert carries its own reliability", () => {
     const alert = evaluateDivergenceAlert(state(), shadow(), reality(), NOW);
-    expect(alert!.body).toMatch(/Twin fit 62%/);
+    const fitMessage = alert!.body.find((m) => m.key === "alert.fitAndConfidence");
+    expect(fitMessage?.params?.fitPct).toBe("62");
   });
 });
 
@@ -171,7 +174,7 @@ describe("evaluateCorporateActionAlerts", () => {
     kind: "dividend",
     timing: "upcoming",
     date: "2025-06-20",
-    summary: "Dividend of Rp 135 per share",
+    summary: msg("actions.dividendSummary", { amount: "Rp 135" }),
     effect: { cashIdr: 135_000, sharesAfter: null, adjustedAvgPrice: null },
     detail: null,
     ...over,
@@ -180,7 +183,8 @@ describe("evaluateCorporateActionAlerts", () => {
   it("flags an action inside the horizon", () => {
     const alerts = evaluateCorporateActionAlerts(state(), [action()], NOW);
     expect(alerts).toHaveLength(1);
-    expect(alerts[0].body).toMatch(/Rp 135.000/);
+    const cashMessage = alerts[0].body.find((m) => m.key === "alert.actionDueCash");
+    expect(cashMessage?.params?.amount).toBe("Rp 135.000");
   });
 
   it("ignores actions beyond the horizon", () => {
@@ -217,13 +221,13 @@ describe("evaluateCorporateActionAlerts", () => {
       [
         action({
           kind: "stock_split",
-          summary: "Stock split, 5:1",
+          summary: msg("actions.splitSummary", { ratio: 5 }),
           effect: { cashIdr: null, sharesAfter: 5000, adjustedAvgPrice: 1000 },
         }),
       ],
       NOW,
     );
-    expect(alerts[0].body).toMatch(/total value does not change/);
+    expect(alerts[0].body.map((m) => m.key)).toContain("alert.actionBecomesShares");
   });
 });
 
@@ -231,8 +235,8 @@ describe("buildDigest", () => {
   const alerts = new Array(8).fill(null).map((_, i) => ({
     kind: "DIVERGENCE" as const,
     symbol: `SYM${i}`,
-    title: `t${i}`,
-    body: "b",
+    title: msg("alert.reality.confirmed"),
+    body: [msg("alert.reality.confirmed")],
     priority: i,
     payload: {},
   }));

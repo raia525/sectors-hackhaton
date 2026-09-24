@@ -1,6 +1,7 @@
 import type { CompanyReport } from "@/lib/sectors/schemas";
 import type { DailyBar } from "@/lib/shadow/types";
 import { annualizedVolatility, logReturns } from "@/lib/shadow/stats";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Headline statistics for a company.
@@ -15,16 +16,16 @@ import { annualizedVolatility, logReturns } from "@/lib/shadow/stats";
  */
 
 export interface KeyStat {
-  label: string;
+  labelKey: TranslationKey;
   value: number | null;
   /** How the UI should format the raw value. */
   format: "currency" | "percent" | "ratio" | "number" | "multiple";
   /** Short explanation, shown for figures a non-analyst may not know. */
-  hint?: string;
+  hintKey?: TranslationKey;
 }
 
 export interface KeyStatGroup {
-  title: string;
+  titleKey: TranslationKey;
   stats: KeyStat[];
 }
 
@@ -114,105 +115,105 @@ export function buildKeyStats(
 
   const groups: KeyStatGroup[] = [
     {
-      title: "Market",
+      titleKey: "keystats.groupMarket",
       stats: [
-        { label: "Last close", value: lastClose, format: "currency" },
+        { labelKey: "keystats.lastClose", value: lastClose, format: "currency" },
         {
-          label: "Daily change",
+          labelKey: "keystats.dailyChange",
           value: overview?.daily_close_change ?? null,
           format: "percent",
         },
         {
-          label: "Market cap",
+          labelKey: "keystats.marketCap",
           value: overview?.market_cap ?? null,
           format: "currency",
         },
         {
-          label: "Annualised volatility",
+          labelKey: "keystats.volatility",
           value: volatility,
           format: "percent",
-          hint: "Spread of daily returns over the window, scaled to a year.",
+          hintKey: "keystats.volatilityHint",
         },
       ],
     },
     {
-      title: "Valuation",
+      titleKey: "keystats.groupValuation",
       stats: [
         {
-          label: "Price to earnings",
+          labelKey: "keystats.pe",
           value: valuation?.pe ?? report.valuation?.forward_pe ?? null,
           format: "multiple",
-          hint: "Price relative to annual profit per share.",
+          hintKey: "keystats.peHint",
         },
         {
-          label: "Price to book",
+          labelKey: "keystats.pb",
           value: valuation?.pb ?? null,
           format: "multiple",
         },
         {
-          label: "Peer average PE",
+          labelKey: "keystats.peerPe",
           value: valuation?.pe_peer_avg ?? null,
           format: "multiple",
-          hint: "What comparable companies trade at, for context.",
+          hintKey: "keystats.peerPeHint",
         },
         {
-          label: "Earnings per share",
+          labelKey: "keystats.eps",
           value: financials?.eps ?? null,
           format: "currency",
         },
       ],
     },
     {
-      title: "Performance",
+      titleKey: "keystats.groupPerformance",
       stats: [
         {
-          label: "Revenue growth",
+          labelKey: "keystats.revenueGrowth",
           value: financials?.yoy_quarter_revenue_growth ?? null,
           format: "percent",
-          hint: "Latest quarter against the same quarter a year earlier.",
+          hintKey: "keystats.revenueGrowthHint",
         },
         {
-          label: "Earnings growth",
+          labelKey: "keystats.earningsGrowth",
           value: financials?.yoy_quarter_earnings_growth ?? null,
           format: "percent",
         },
         {
-          label: "Return on equity",
+          labelKey: "keystats.roe",
           value: roe,
           format: "percent",
-          hint: "Profit generated per rupiah of shareholder capital.",
+          hintKey: "keystats.roeHint",
         },
-        { label: "Net margin", value: netMargin, format: "percent" },
+        { labelKey: "keystats.netMargin", value: netMargin, format: "percent" },
       ],
     },
     {
-      title: "Income and leverage",
+      titleKey: "keystats.groupIncome",
       stats: [
         {
-          label: "Dividend yield",
+          labelKey: "keystats.dividendYield",
           value: dividend?.yield_ttm ?? null,
           format: "percent",
-          hint: "Dividends over the last twelve months against the price.",
+          hintKey: "keystats.dividendYieldHint",
         },
         {
-          label: "Payout ratio",
+          labelKey: "keystats.payoutRatio",
           value: dividend?.payout_ratio ?? null,
           format: "percent",
-          hint: "Share of profit paid out. Above 100% is paid from reserves.",
+          hintKey: "keystats.payoutRatioHint",
         },
         {
-          label: "Debt to equity",
+          labelKey: "keystats.debtToEquity",
           value: debtToEquity,
           format: "ratio",
           // Banks fund themselves with deposits, which land in liabilities, so
           // a ratio near 5 is ordinary for them and alarming for a manufacturer.
           // Without this note the figure invites the wrong conclusion.
-          hint: isBank
-            ? "Customer deposits count as liabilities, so this runs high for banks by nature."
-            : "Liabilities against shareholder capital.",
+          hintKey: isBank
+            ? "keystats.debtToEquityBank"
+            : "keystats.debtToEquityGeneral",
         },
         {
-          label: "Employees",
+          labelKey: "keystats.employees",
           value: overview?.employee_num ?? null,
           format: "number",
         },
