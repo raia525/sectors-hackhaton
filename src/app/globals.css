@@ -215,12 +215,202 @@
   font-feature-settings: "tnum";
 }
 
+/**
+ * Landing page motion.
+ *
+ * Scroll reveals are driven by ScrollReveal, which sets `data-state` on each
+ * `[data-reveal]` element. Everything is keyed off `data-reveal-ready` on
+ * <html>, which only that script sets, so without script (or with reduced
+ * motion) the page renders fully visible and static.
+ *
+ * Reveals move `transform`; hover lift and the idle float move the separate
+ * `translate` property, so the two compose instead of overwriting each other.
+ */
+:root {
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Unlayered so the hover shadow wins over a card's `shadow-*` utility. */
+.lift {
+  transition:
+    translate 0.3s var(--ease-soft),
+    box-shadow 0.3s var(--ease-soft);
+}
+.lift:hover {
+  translate: 0 -4px;
+  box-shadow:
+    0 2px 4px rgba(21, 21, 26, 0.05),
+    0 24px 44px -22px rgba(21, 21, 26, 0.32);
+}
+
+/* Only visible where scroll-driven animation is supported. */
+.scroll-progress {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-reveal-ready] [data-reveal] {
+    --rx: 0px;
+    --ry: 48px;
+    --rs: 1;
+    --dir: 1;
+    transition-property: opacity, transform, translate, box-shadow;
+    transition-duration: 0.7s, 0.9s, 0.3s, 0.3s;
+    transition-timing-function: var(--ease-soft);
+    transition-delay: var(--reveal-delay, 0ms), var(--reveal-delay, 0ms), 0ms, 0ms;
+  }
+  html[data-reveal-ready] [data-reveal="left"] {
+    --rx: -64px;
+    --ry: 12px;
+  }
+  html[data-reveal-ready] [data-reveal="right"] {
+    --rx: 64px;
+    --ry: 12px;
+  }
+  html[data-reveal-ready] [data-reveal="zoom"] {
+    --ry: 28px;
+    --rs: 0.94;
+  }
+  /* Left behind at the top: re-enters from above when scrolling back up. */
+  html[data-reveal-ready] [data-reveal][data-state="above"] {
+    --dir: -1;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-state="in"]) {
+    opacity: 0;
+    transform: translate3d(var(--rx), calc(var(--ry) * var(--dir)), 0) scale(var(--rs));
+    transition-delay: 0ms;
+  }
+
+  /* Child animations, replayed each time their revealed parent comes in. */
+  .reveal-draw {
+    transition: stroke-dashoffset 1.6s var(--ease-soft) var(--d, 250ms);
+  }
+  .reveal-fade {
+    transition: opacity 0.9s var(--ease-soft) var(--d, 0ms);
+  }
+  .reveal-grow,
+  .reveal-grow-y,
+  .reveal-pop {
+    transition: transform 1s var(--ease-soft) var(--d, 0ms);
+  }
+  .reveal-grow {
+    transform-origin: left center;
+  }
+  .reveal-grow-y {
+    transform-origin: center bottom;
+  }
+  .reveal-pop {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-state="in"]) .reveal-draw {
+    stroke-dashoffset: 1;
+    transition-duration: 0.3s;
+    transition-delay: 0ms;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-state="in"]) .reveal-fade {
+    opacity: 0;
+    transition-delay: 0ms;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-state="in"]) .reveal-grow {
+    transform: scaleX(0);
+    transition-delay: 0ms;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-state="in"]) .reveal-grow-y {
+    transform: scaleY(0);
+    transition-delay: 0ms;
+  }
+  html[data-reveal-ready] [data-reveal]:not([data-state="in"]) .reveal-pop {
+    transform: scale(0);
+    transition-delay: 0ms;
+  }
+
+  /* The first frame after the script runs: snap to hidden, never fade out. */
+  html[data-reveal-init] [data-reveal],
+  html[data-reveal-init] [data-reveal] * {
+    transition: none !important;
+  }
+
+  /* Hero copy rises in on load, without waiting for script. */
+  .rise {
+    animation: rise 0.8s var(--ease-soft) both;
+    animation-delay: var(--d, 0ms);
+  }
+
+  .bob {
+    animation: bob 6s ease-in-out infinite;
+  }
+
+  .ping-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ping-ring 2.4s ease-out infinite;
+  }
+
+  /* Scroll-linked effects, where the browser supports them natively. They
+     follow the scrollbar exactly, so they reverse on the way back up. */
+  @supports (animation-timeline: scroll()) {
+    .scroll-progress {
+      display: block;
+      transform-origin: left center;
+      animation: scroll-progress linear both;
+      animation-timeline: scroll(root);
+    }
+    .parallax {
+      animation: parallax linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100vh;
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@keyframes bob {
+  50% {
+    translate: 0 -10px;
+  }
+}
+
+@keyframes ping-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+@keyframes scroll-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes parallax {
+  to {
+    translate: 0 var(--parallax, 120px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
 

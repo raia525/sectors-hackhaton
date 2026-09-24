@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 /**
  * Shared presentational primitives.
@@ -87,12 +87,14 @@ export function Card({
 export function InkPanel({
   children,
   className = "",
+  ...rest
 }: {
   children: ReactNode;
   className?: string;
-}) {
+} & Omit<HTMLAttributes<HTMLElement>, "className" | "children">) {
   return (
     <section
+      {...rest}
       className={`ink rounded-[var(--radius-lg)] border border-border p-5 shadow-[var(--shadow-card)] lg:p-6 ${className}`}
     >
       {children}
