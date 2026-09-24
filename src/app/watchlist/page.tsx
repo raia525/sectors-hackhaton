@@ -3,7 +3,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { WatchlistManager } from "@/components/WatchlistManager";
 import { NotificationList } from "@/components/NotificationList";
-import { Card, CardHeader, EmptyState } from "@/components/ui/primitives";
+import {
+  Card,
+  CardHeader,
+  Container,
+  IconBadge,
+  InkPanel,
+  PageHeader,
+} from "@/components/ui/primitives";
+import { IconBell } from "@/components/ui/icons";
+import { AuthBenefits } from "@/components/AuthBenefits";
 import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata = {
@@ -19,34 +28,40 @@ export default async function WatchlistPage() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight text-text">
-          {t("watchlist.title")}
-        </h1>
-        <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-text-muted">
-          {t("watchlist.signedOutDescription")}
-        </p>
-        <div className="mt-8">
-          <EmptyState
-            title={t("watchlist.signInPrompt")}
-            description={t("watchlist.signInDescription")}
-          />
-          <div className="mt-4 flex justify-center gap-3">
-            <Link
-              href="/signin"
-              className="rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover"
-            >
-              {t("nav.signIn")}
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-full border border-border px-4 py-2.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text"
-            >
-              {t("watchlist.createAccount")}
-            </Link>
+      <Container className="space-y-8 py-8 lg:py-10">
+        <PageHeader
+          title={t("watchlist.title")}
+          description={t("watchlist.signedOutDescription")}
+        />
+        <InkPanel className="grid gap-8 p-8 lg:grid-cols-[1fr_1fr] lg:p-10">
+          <div>
+            <IconBadge>
+              <IconBell />
+            </IconBadge>
+            <h2 className="mt-5 text-[26px] font-extrabold leading-tight tracking-tight text-text">
+              {t("watchlist.signInPrompt")}
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-text-muted">
+              {t("watchlist.signInDescription")}
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                href="/signin"
+                className="rounded-full bg-accent px-6 py-3 text-sm font-bold text-accent-contrast transition-colors hover:bg-accent-hover"
+              >
+                {t("nav.signIn")}
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-full border border-border-strong px-6 py-3 text-sm font-bold text-text transition-colors hover:bg-surface-raised"
+              >
+                {t("watchlist.createAccount")}
+              </Link>
+            </div>
           </div>
-        </div>
-      </div>
+          <AuthBenefits />
+        </InkPanel>
+      </Container>
     );
   }
 
@@ -66,20 +81,18 @@ export default async function WatchlistPage() {
   const holdingBySymbol = new Map(holdings.map((h) => [h.symbol, h]));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-xl">
-          <h1 className="text-2xl font-semibold tracking-tight text-text">
-            {t("watchlist.title")}
-          </h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-text-muted">
-            {t("watchlist.description")}
-          </p>
-        </div>
-        <p className="text-sm text-text-subtle">{user.email}</p>
-      </div>
+    <Container className="space-y-8 py-8 lg:py-10">
+      <PageHeader
+        title={t("watchlist.title")}
+        description={t("watchlist.description")}
+        actions={
+          <span className="rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text-muted">
+            {user.email}
+          </span>
+        }
+      />
 
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+      <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_1fr]">
         <Card>
           <CardHeader
             title={t("watchlist.trackedTitle")}
@@ -100,7 +113,7 @@ export default async function WatchlistPage() {
           />
         </Card>
 
-        <Card>
+        <InkPanel>
           <CardHeader
             title={t("watchlist.alertsTitle")}
             description={t("watchlist.alertsDescription")}
@@ -116,8 +129,8 @@ export default async function WatchlistPage() {
               read: n.readAt !== null,
             }))}
           />
-        </Card>
+        </InkPanel>
       </div>
-    </div>
+    </Container>
   );
 }

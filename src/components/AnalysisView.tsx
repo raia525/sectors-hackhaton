@@ -1,20 +1,34 @@
+import Link from "next/link";
 import { analyzeSymbol, AnalysisError } from "@/lib/analysis/service";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getTranslator } from "@/lib/i18n/server";
-import { AttributionBar } from "./AttributionBar";
+import { AnalysisStats } from "./AnalysisStats";
+import { AnalysisNarrative } from "./AnalysisNarrative";
+import { AttributionHero } from "./AttributionHero";
 import { DivergenceChart } from "./DivergenceChart";
 import { TwinComposition } from "./TwinComposition";
-import { VerdictPanel } from "./VerdictPanel";
 import { KeyStatsPanel } from "./KeyStatsPanel";
 import { CorporateActionsPanel } from "./CorporateActionsPanel";
 import { SeasonalityPanel } from "./SeasonalityPanel";
 import { SmartMoneyPanel } from "./SmartMoneyPanel";
-import { Card, CardHeader, Caveats, EmptyState } from "./ui/primitives";
+import {
+  Card,
+  CardHeader,
+  Caveats,
+  EmptyState,
+  InkPanel,
+  PageHeader,
+} from "./ui/primitives";
+import { IconChevronLeft, IconCompare } from "./ui/icons";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Server component that runs a full analysis and lays out the result.
+ *
+ * Reading order, top to bottom: the headline figures, the same result told as
+ * a story, the evidence behind it (the twin, its peers and the return split,
+ * on the dark panel), then the supporting detail and its limits.
  *
  * Errors are rendered as explanations rather than thrown, because the common
  * failure modes here are expected states, not bugs: a ticker with too little
@@ -39,54 +53,91 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
   const { shadow, realityCheck, notices } = result;
   const hasTwin = shadow.constituents.length > 0;
 
+  // The compare page takes up to four symbols: this stock plus its three
+  // heaviest peers is the most natural comparison to offer.
+  const peers = [...shadow.constituents]
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 3)
+    .map((c) => c.symbol);
+  const compareHref = `/compare?symbols=${[result.symbol, ...peers].join(",")}`;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight text-text">
-            {result.symbol}
-          </h2>
-          <p className="text-sm text-text-muted">{result.companyName}</p>
-        </div>
-        {shadow.asOf ? (
-          <p className="tnum text-xs text-text-subtle">
-            {t("analysis.asOf", { date: shadow.asOf })} &middot;{" "}
-            {t("analysis.sessions", { count: shadow.fitWindow })}
-          </p>
-        ) : null}
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        back={
+          <Link
+            href="/"
+            aria-label={t("analysis.back")}
+            className="mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-[var(--shadow-card)] transition-colors hover:text-text"
+          >
+            <IconChevronLeft />
+          </Link>
+        }
+        title={result.symbol}
+        description={result.companyName}
+        actions={
+          <>
+            {shadow.asOf ? (
+              <span className="tnum rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text-muted">
+                {t("analysis.asOf", { date: shadow.asOf })} &middot;{" "}
+                {t("analysis.sessions", { count: shadow.fitWindow })}
+              </span>
+            ) : null}
+            {hasTwin ? (
+              <Link
+                href={compareHref}
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-contrast shadow-[var(--shadow-card)] transition-colors hover:bg-accent-hover"
+              >
+                <IconCompare size={16} />
+                {t("analysis.compareCta")}
+              </Link>
+            ) : null}
+          </>
+        }
+      />
 
       {hasTwin ? (
         <>
-          <Card>
-            <VerdictPanel shadow={shadow} reality={realityCheck} />
-          </Card>
+          <AnalysisStats shadow={shadow} reality={realityCheck} />
 
-          <Card>
-            <CardHeader
-              title={t("analysis.attributionTitle")}
-              description={t("analysis.attributionDescription")}
-            />
+          <AnalysisNarrative
+            symbol={result.symbol}
+            shadow={shadow}
+            reality={realityCheck}
+            smartMoney={result.smartMoney}
+          />
+
+          <InkPanel>
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-[18px] font-extrabold tracking-tight text-text">
+                  {t("analysis.attributionTitle")}
+                </h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  {t("analysis.attributionDescription")}
+                </p>
+              </div>
+            </div>
+
             <DivergenceChart series={shadow.series} symbol={result.symbol} />
-          </Card>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader
-                title={t("analysis.breakdownTitle")}
-                description={t("analysis.breakdownDescription")}
+            <div className="mt-7 grid items-start gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)]">
+              <div>
+                <h3 className="text-[16px] font-bold text-text">{t("analysis.twinTitle")}</h3>
+                <p className="mb-4 mt-1 text-sm text-text-muted">
+                  {t("analysis.twinDescription")}
+                </p>
+                <TwinComposition constituents={shadow.constituents} />
+              </div>
+              <AttributionHero
+                attribution={shadow.attribution}
+                zScore={shadow.zScore}
+                fitQuality={shadow.fitQuality}
+                sessions={shadow.fitWindow}
+                trackHref="/watchlist"
               />
-              <AttributionBar attribution={shadow.attribution} />
-            </Card>
-
-            <Card>
-              <CardHeader
-                title={t("analysis.twinTitle")}
-                description={t("analysis.twinDescription")}
-              />
-              <TwinComposition constituents={shadow.constituents} />
-            </Card>
-          </div>
+            </div>
+          </InkPanel>
         </>
       ) : (
         <EmptyState
@@ -105,7 +156,7 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
         <KeyStatsPanel stats={result.keyStats} />
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader
             title={t("analysis.actionsTitle")}

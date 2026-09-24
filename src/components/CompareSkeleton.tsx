@@ -16,10 +16,10 @@ export function CompareSkeleton({ count }: { count: number }) {
 
   return (
     <div aria-live="polite" aria-busy="true" className="space-y-3">
-      <p className="text-sm text-text-muted">
+      <p className="text-sm font-semibold text-text-muted">
         {t("compare.buildingTwins", { count, label })}
       </p>
-      <div className="h-56 animate-pulse rounded-[10px] border border-border bg-surface" />
+      <div className="ink h-72 animate-pulse rounded-[var(--radius-lg)]" />
     </div>
   );
 }

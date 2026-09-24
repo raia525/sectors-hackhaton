@@ -1,6 +1,7 @@
 import { clamp } from "@/lib/shadow/stats";
 import type { DailyBar } from "@/lib/shadow/types";
 import { msg, type Message } from "@/lib/i18n/message";
+import { formatIdr, formatPercent } from "@/lib/format";
 import type {
   DivergenceType,
   FlowDirection,
@@ -237,14 +238,15 @@ export function analyzeSmartMoney(input: SmartMoneyInput): SmartMoneySignal {
   const type = classifyDivergence(priceReturn, flow.direction, ownershipShift?.direction ?? null);
   const conviction = computeConviction(type, flow, ownershipShift, priceReturn);
 
-  // Raw numbers travel in the message params; the render layer formats them
-  // (currency, percent) in the viewer's locale rather than the engine baking
-  // in an English-formatted string.
+  // Figures are formatted here, not left raw: the render layer interpolates
+  // params verbatim, so an unformatted fraction would reach the screen as
+  // "0.1232394361971826". Rupiah and signed-percent notation read the same in
+  // both supported languages, so formatting in the engine loses nothing.
   findings.push(
     msg("smartmoney.summaryLine", {
-      priceReturn,
-      flowValue: flow.netIdr,
-      flowIntensity: flow.intensity,
+      priceReturn: formatPercent(priceReturn),
+      flowValue: formatIdr(flow.netIdr),
+      flowIntensity: formatPercent(flow.intensity),
     }),
   );
 

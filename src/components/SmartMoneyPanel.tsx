@@ -1,9 +1,9 @@
 "use client";
 
-import type { DivergenceType, SmartMoneySignal } from "@/lib/smartmoney/types";
-import { Badge, formatIdr, formatPercent, type BadgeTone } from "./ui/primitives";
+import type { SmartMoneySignal } from "@/lib/smartmoney/types";
+import { Badge, formatIdr, formatPercent } from "./ui/primitives";
 import { useTranslation } from "@/lib/i18n/client";
-import type { TranslationKey } from "@/lib/i18n/dictionary";
+import { SMART_MONEY_COPY } from "./verdictCopy";
 
 /**
  * Institutional and foreign positioning against price.
@@ -14,40 +14,9 @@ import type { TranslationKey } from "@/lib/i18n/dictionary";
  * leaving a bare number to be read as a price target.
  */
 
-const TYPE_COPY: Record<
-  DivergenceType,
-  { labelKey: TranslationKey; tone: BadgeTone; meaningKey: TranslationKey }
-> = {
-  bullish_divergence: {
-    labelKey: "smartmoney.type.bullish",
-    tone: "extreme",
-    meaningKey: "smartmoney.meaning.bullish",
-  },
-  bearish_divergence: {
-    labelKey: "smartmoney.type.bearish",
-    tone: "significant",
-    meaningKey: "smartmoney.meaning.bearish",
-  },
-  confirmation_up: {
-    labelKey: "smartmoney.type.confirmedUp",
-    tone: "normal",
-    meaningKey: "smartmoney.meaning.confirmedUp",
-  },
-  confirmation_down: {
-    labelKey: "smartmoney.type.confirmedDown",
-    tone: "normal",
-    meaningKey: "smartmoney.meaning.confirmedDown",
-  },
-  no_signal: {
-    labelKey: "smartmoney.type.none",
-    tone: "neutral",
-    meaningKey: "smartmoney.meaning.none",
-  },
-};
-
 export function SmartMoneyPanel({ signal }: { signal: SmartMoneySignal }) {
   const { t, tm } = useTranslation();
-  const copy = TYPE_COPY[signal.type];
+  const copy = SMART_MONEY_COPY[signal.type];
 
   if (signal.insufficientData) {
     return (

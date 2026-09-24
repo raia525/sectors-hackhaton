@@ -124,9 +124,40 @@ function ActionRow({
         </div>
       ) : null}
 
-      {item.detail ? (
-        <p className="mt-0.5 text-xs text-text-subtle">{tm(item.detail)}</p>
-      ) : null}
+      {item.detail ? <Detail text={tm(item.detail)} /> : null}
     </li>
+  );
+}
+
+/** Characters past which a detail is collapsed behind a toggle. */
+const LONG_DETAIL = 220;
+
+/**
+ * An action's detail line.
+ *
+ * Meeting results arrive as the exchange filing's full text, which can run to
+ * several paragraphs and bury every other action in the list. Long ones are
+ * collapsed to a few lines behind a native <details> toggle: nothing is
+ * hidden for good, and it works with a keyboard and without extra script.
+ */
+function Detail({ text }: { text: string }) {
+  const { t } = useTranslation();
+
+  if (text.length <= LONG_DETAIL) {
+    return <p className="mt-0.5 text-xs leading-relaxed text-text-subtle">{text}</p>;
+  }
+
+  return (
+    <details className="group mt-0.5 text-xs leading-relaxed text-text-subtle">
+      <summary className="cursor-pointer list-none">
+        <span className="line-clamp-3 group-open:line-clamp-none">{text}</span>
+        <span className="mt-1 inline-block font-semibold text-accent group-open:hidden">
+          {t("actions.showMore")}
+        </span>
+        <span className="mt-1 hidden font-semibold text-accent group-open:inline-block">
+          {t("actions.showLess")}
+        </span>
+      </summary>
+    </details>
   );
 }

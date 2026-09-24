@@ -495,6 +495,97 @@ export const en = {
   "email.omitted.plural": "alerts were",
   "email.footer.disclaimer":
     "SHADOW IDX reports what has already happened in price and news. It does not forecast returns and it is not investment advice. You are receiving this because you added these stocks to your watchlist.",
+
+  // Brand
+  "brand.tagline": "Market intelligence for IDX",
+  "actions.showMore": "Show all",
+  "actions.showLess": "Show less",
+
+  // Analysis header and stat cards
+  "analysis.back": "Back to search",
+  "analysis.compareCta": "Compare with peers",
+  "analysis.trackCta": "Track this stock",
+  "stats.stockSpecificCaption": "The part of the move its peers do not explain.",
+  "stats.twinFitCaption": "Built from {count} comparable companies.",
+  "stats.twinFitWeak": "Weak fit, so read the divergence with care.",
+  "stats.realityTitle": "News against price",
+
+  // Narrative
+  "narrative.title": "The story in plain words",
+  "narrative.opening": "Over the last {sessions} sessions, {symbol} returned {total}.",
+  "narrative.smartMoneyLead": "On positioning:",
+  "narrative.closing":
+    "All of this describes what has already happened. Use it to decide what deserves a closer look, and read the limits at the bottom of the page before acting on it.",
+
+  // Attribution hero
+  "hero.subtitle": "Split into the market, comparable companies and the company itself.",
+  "hero.sessions": "Sessions",
+
+  // Compare
+  "compare.formTitle": "Pick the stocks",
+  "compare.resultsTitle": "Ranked by divergence",
+  "compare.summaryLead":
+    "{symbol} is doing the most on its own: {specific} beyond what its twin explains, a divergence of {z} standard deviations.",
+  "compare.summaryTail": " {symbol} sits closest to its twin, at {z}.",
+
+  // Auth side panel
+  "auth.panelTitle": "Why create an account",
+  "auth.panelPoint1": "Keep a watchlist with your own alert threshold for every stock.",
+  "auth.panelPoint2":
+    "Get an alert only when a stock moves beyond what its peers explain, not on every price change.",
+  "auth.panelPoint3": "Record your position so dividends and splits are shown in rupiah.",
+
+  // Landing page
+  "landing.titleLead": "Every stock has a",
+  "landing.titleAccent": "shadow.",
+  "landing.tickerCount": "{count} IDX tickers, searchable by code or name",
+  "landing.dataSource": "Data from the Sectors API",
+  "landing.noForecast": "Describes, never forecasts",
+  "landing.illustration": "Illustration, not live data",
+  "landing.illustrationStock": "Stock",
+  "landing.howTitle": "How it works",
+  "landing.howSubtitle": "Three steps, every time you search a ticker.",
+  "landing.stepLabel": "Step {n}",
+  "landing.step1Title": "Build the twin",
+  "landing.step1Body":
+    "We pick the listed companies that trade most like your stock and blend them into a synthetic twin.",
+  "landing.step2Title": "Split the move",
+  "landing.step2Body":
+    "Every return is divided into what IHSG explains, what the twin explains, and what is left over.",
+  "landing.step3Title": "Check the story",
+  "landing.step3Body":
+    "News tone and institutional flow are set against the price, so you can see whether they agree.",
+  "landing.featuresTitle": "What each analysis shows you",
+  "landing.featuresSubtitle":
+    "Every panel answers one question, and says how sure it can be about the answer.",
+  "landing.feature.twinTitle": "A twin you can audit",
+  "landing.feature.twinBody":
+    "See every peer in the twin, its weight and why it qualified. If the peer set looks wrong to you, you can dismiss the result.",
+  "landing.feature.realityTitle": "News against price",
+  "landing.feature.realityBody":
+    "Headlines and the stock-specific move are compared side by side. When they disagree, that disagreement is the signal.",
+  "landing.feature.smartTitle": "Smart money positioning",
+  "landing.feature.smartBody":
+    "Foreign flow and institutional ownership, set against the price to show who is buying what the market is selling.",
+  "landing.feature.actionsTitle": "Corporate actions in rupiah",
+  "landing.feature.actionsBody":
+    "Dividends and splits shown as cash and shares for your own position, not as ratios.",
+  "landing.feature.alertsTitle": "Alerts that stay quiet",
+  "landing.feature.alertsBody":
+    "You hear about a stock only when it moves beyond what its peers explain, with the reason in the message.",
+  "landing.feature.compareTitle": "Compare by divergence",
+  "landing.feature.compareBody":
+    "Rank up to four stocks by how far each has moved from its own twin, rather than by raw return.",
+  "landing.honestyTitle": "Built to avoid false confidence",
+  "landing.honestyBody":
+    "A 7% jump means little if every bank rose 6% the same day. The part that is left over, the move that belongs to the company alone, is the only part that says something new about it. That is the number SHADOW IDX exists to find, and it is careful about how sure it can be.",
+  "landing.honestyPoint1": "No forecasts. Every figure describes what has already happened.",
+  "landing.honestyPoint2": "Thin data produces no signal, rather than a weak one dressed up as strong.",
+  "landing.honestyPoint3": "Every result carries its own limits, shown next to the numbers.",
+  "landing.ctaTitle": "Start with a stock you already hold",
+  "landing.ctaBody": "Search it at the top of the page, or open one of these examples.",
+  "landing.ctaAnalyse": "Analyse {symbol}",
+  "landing.ctaCompare": "Compare the big four banks",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -955,4 +1046,88 @@ export const id: Record<TranslationKey, string> = {
   "email.omitted.plural": "notifikasi",
   "email.footer.disclaimer":
     "SHADOW IDX melaporkan apa yang sudah terjadi pada harga dan berita. Ini bukan prediksi return dan bukan saran investasi. Anda menerima email ini karena menambahkan saham-saham ini ke watchlist Anda.",
+
+  "brand.tagline": "Intelijen pasar untuk IDX",
+  "actions.showMore": "Tampilkan semua",
+  "actions.showLess": "Tampilkan lebih sedikit",
+
+  "analysis.back": "Kembali ke pencarian",
+  "analysis.compareCta": "Bandingkan dengan peer",
+  "analysis.trackCta": "Pantau saham ini",
+  "stats.stockSpecificCaption": "Bagian pergerakan yang tidak dijelaskan peer-nya.",
+  "stats.twinFitCaption": "Dibangun dari {count} perusahaan sebanding.",
+  "stats.twinFitWeak": "Fit lemah, jadi baca divergensinya dengan hati-hati.",
+  "stats.realityTitle": "Berita vs harga",
+
+  "narrative.title": "Ceritanya dalam bahasa sederhana",
+  "narrative.opening": "Dalam {sessions} sesi terakhir, return {symbol} sebesar {total}.",
+  "narrative.smartMoneyLead": "Dari sisi positioning:",
+  "narrative.closing":
+    "Semua ini menggambarkan apa yang sudah terjadi. Gunakan untuk memutuskan apa yang layak diperiksa lebih dalam, dan baca batasannya di bagian bawah halaman sebelum bertindak.",
+
+  "hero.subtitle": "Dipecah menjadi market, perusahaan sebanding, dan perusahaan itu sendiri.",
+  "hero.sessions": "Sesi",
+
+  "compare.formTitle": "Pilih sahamnya",
+  "compare.resultsTitle": "Diperingkat berdasarkan divergensi",
+  "compare.summaryLead":
+    "{symbol} paling banyak bergerak sendiri: {specific} di luar yang dijelaskan twin-nya, divergensi sebesar {z} standar deviasi.",
+  "compare.summaryTail": " {symbol} paling dekat dengan twin-nya, di {z}.",
+
+  "auth.panelTitle": "Mengapa membuat akun",
+  "auth.panelPoint1": "Simpan watchlist dengan ambang notifikasi Anda sendiri untuk setiap saham.",
+  "auth.panelPoint2":
+    "Terima notifikasi hanya saat saham bergerak melampaui yang dijelaskan peer-nya, bukan setiap kali harga berubah.",
+  "auth.panelPoint3": "Catat posisi Anda agar dividen dan stock split ditampilkan dalam rupiah.",
+
+  "landing.titleLead": "Setiap saham punya",
+  "landing.titleAccent": "bayangan.",
+  "landing.tickerCount": "{count} kode saham IDX, bisa dicari lewat kode atau nama",
+  "landing.dataSource": "Data dari Sectors API",
+  "landing.noForecast": "Menggambarkan, bukan meramal",
+  "landing.illustration": "Ilustrasi, bukan data langsung",
+  "landing.illustrationStock": "Saham",
+  "landing.howTitle": "Cara kerjanya",
+  "landing.howSubtitle": "Tiga langkah, setiap kali Anda mencari kode saham.",
+  "landing.stepLabel": "Langkah {n}",
+  "landing.step1Title": "Bangun twin",
+  "landing.step1Body":
+    "Kami memilih emiten yang pergerakannya paling mirip dengan saham Anda, lalu menggabungkannya menjadi synthetic twin.",
+  "landing.step2Title": "Pisahkan pergerakannya",
+  "landing.step2Body":
+    "Setiap return dipecah menjadi bagian yang dijelaskan IHSG, bagian yang dijelaskan twin, dan sisanya.",
+  "landing.step3Title": "Cek narasinya",
+  "landing.step3Body":
+    "Tone berita dan aliran dana institusi dibandingkan dengan harga, sehingga terlihat apakah keduanya sejalan.",
+  "landing.featuresTitle": "Apa yang ditunjukkan setiap analisis",
+  "landing.featuresSubtitle":
+    "Setiap panel menjawab satu pertanyaan, dan menyebutkan seberapa yakin jawabannya.",
+  "landing.feature.twinTitle": "Twin yang bisa Anda periksa",
+  "landing.feature.twinBody":
+    "Lihat setiap peer di dalam twin, bobotnya, dan alasan ia terpilih. Jika susunan peer terasa keliru bagi Anda, hasilnya bisa Anda abaikan.",
+  "landing.feature.realityTitle": "Berita dibandingkan harga",
+  "landing.feature.realityBody":
+    "Judul berita dan pergerakan spesifik saham dibandingkan berdampingan. Ketika keduanya tidak sejalan, ketidaksesuaian itulah sinyalnya.",
+  "landing.feature.smartTitle": "Smart money positioning",
+  "landing.feature.smartBody":
+    "Foreign flow dan kepemilikan institusi, dibandingkan dengan harga untuk menunjukkan siapa yang membeli saat market menjual.",
+  "landing.feature.actionsTitle": "Corporate action dalam rupiah",
+  "landing.feature.actionsBody":
+    "Dividen dan stock split ditampilkan sebagai uang tunai dan jumlah saham untuk posisi Anda sendiri, bukan sekadar rasio.",
+  "landing.feature.alertsTitle": "Notifikasi yang tidak berisik",
+  "landing.feature.alertsBody":
+    "Anda hanya diberi tahu saat saham bergerak melampaui yang dijelaskan peer-nya, lengkap dengan alasannya.",
+  "landing.feature.compareTitle": "Bandingkan lewat divergensi",
+  "landing.feature.compareBody":
+    "Urutkan hingga empat saham berdasarkan seberapa jauh masing-masing bergerak dari twin-nya, bukan dari return mentah.",
+  "landing.honestyTitle": "Dirancang untuk menghindari keyakinan palsu",
+  "landing.honestyBody":
+    "Kenaikan 7% tidak berarti banyak jika semua bank naik 6% di hari yang sama. Sisa pergerakan yang benar-benar milik perusahaan itu sendiri adalah satu-satunya bagian yang memberi informasi baru tentangnya. Itulah angka yang dicari SHADOW IDX, dan ia berhati-hati soal seberapa yakin angka itu.",
+  "landing.honestyPoint1": "Tanpa prediksi. Setiap angka menggambarkan apa yang sudah terjadi.",
+  "landing.honestyPoint2": "Data yang tipis menghasilkan tidak ada sinyal, bukan sinyal lemah yang dikemas seolah kuat.",
+  "landing.honestyPoint3": "Setiap hasil membawa batasannya sendiri, ditampilkan di samping angkanya.",
+  "landing.ctaTitle": "Mulai dari saham yang sudah Anda miliki",
+  "landing.ctaBody": "Cari di bagian atas halaman, atau buka salah satu contoh ini.",
+  "landing.ctaAnalyse": "Analisis {symbol}",
+  "landing.ctaCompare": "Bandingkan empat bank besar",
 };

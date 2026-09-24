@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ComparisonResult } from "@/lib/analysis/compare";
-import { Badge, Card, formatPercent, formatSigned, type BadgeTone } from "./ui/primitives";
+import { Badge, formatPercent, formatSigned, type BadgeTone } from "./ui/primitives";
 import { useTranslation } from "@/lib/i18n/client";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 import type { DivergenceVerdict } from "@/lib/shadow/types";
@@ -35,7 +35,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
 
   if (ranked.length === 0) {
     return (
-      <Card>
+      <div className="rounded-[var(--radius-sm)] bg-surface-raised p-5">
         <p className="text-sm text-text-muted">{t("compare.noneUsable")}</p>
         {failures.length > 0 ? (
           <ul className="mt-3 space-y-1.5">
@@ -47,7 +47,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
             ))}
           </ul>
         ) : null}
-      </Card>
+      </div>
     );
   }
 
@@ -56,7 +56,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
   return (
     <div className="space-y-4">
       {/* Wide screens: aligned table for scanning down a column. */}
-      <Card className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <caption className="sr-only">{t("compare.tableCaption")}</caption>
           <thead>
@@ -75,11 +75,11 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
             {ranked.map((row) => {
               const verdict = VERDICT_COPY[row.verdict];
               return (
-                <tr key={row.symbol} className="border-b border-border last:border-0">
-                  <td className="py-3 pr-3">
+                <tr key={row.symbol} className={`border-b border-border last:border-0 ${row === ranked[0] ? "bg-accent-soft" : ""}`}>
+                  <td className="py-3.5 pl-3 pr-3">
                     <Link
                       href={`/?symbol=${row.symbol}`}
-                      className="font-medium text-text hover:text-accent"
+                      className="font-bold text-text hover:text-accent"
                     >
                       {row.symbol}
                     </Link>
@@ -90,7 +90,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
                   <Td value={row.totalReturn} />
                   <Td value={row.marketComponent} muted />
                   <Td value={row.sectorComponent} muted />
-                  <td className="py-3 pl-3 text-right">
+                  <td className="py-3.5 px-3 text-right">
                     <div
                       className={`tnum font-medium ${row.idiosyncratic >= 0 ? "text-up" : "text-down"}`}
                     >
@@ -106,13 +106,13 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
                       />
                     </div>
                   </td>
-                  <td className="tnum py-3 pl-3 text-right text-text-muted">
+                  <td className="tnum py-3.5 px-3 text-right text-text-muted">
                     {formatSigned(row.zScore)}
                   </td>
-                  <td className="tnum py-3 pl-3 text-right text-text-muted">
+                  <td className="tnum py-3.5 px-3 text-right text-text-muted">
                     {(row.fitQuality * 100).toFixed(0)}%
                   </td>
-                  <td className="py-3 pl-3">
+                  <td className="py-3.5 px-3">
                     <Badge tone={verdict.tone}>{t(verdict.key)}</Badge>
                   </td>
                 </tr>
@@ -120,14 +120,14 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
             })}
           </tbody>
         </table>
-      </Card>
+      </div>
 
       {/* Narrow screens: one card per stock, every figure labelled. */}
       <div className="space-y-3 md:hidden">
         {ranked.map((row) => {
           const verdict = VERDICT_COPY[row.verdict];
           return (
-            <Card key={row.symbol}>
+            <div key={row.symbol} className={`rounded-[var(--radius-sm)] p-4 ${row === ranked[0] ? "bg-accent-soft ring-1 ring-accent/40" : "bg-surface-raised"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
@@ -160,13 +160,13 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
                   value={`${(row.fitQuality * 100).toFixed(0)}%`}
                 />
               </dl>
-            </Card>
+            </div>
           );
         })}
       </div>
 
       {failures.length > 0 ? (
-        <Card>
+        <div className="mt-4 rounded-[var(--radius-sm)] bg-surface-raised p-5">
           <h3 className="text-[11px] font-medium uppercase tracking-wide text-text-subtle">
             {t("compare.notComparedTitle")}
           </h3>
@@ -178,7 +178,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
               </li>
             ))}
           </ul>
-        </Card>
+        </div>
       ) : null}
     </div>
   );
@@ -194,7 +194,7 @@ function Th({
   return (
     <th
       scope="col"
-      className={`pb-2 ${align === "right" ? "pl-3 text-right" : "pr-3"} text-[11px] font-medium uppercase tracking-wide text-text-subtle`}
+      className={`pb-3 ${align === "right" ? "pl-3 pr-3 text-right" : "pl-3 pr-3"} text-xs font-semibold text-text-subtle`}
     >
       {children}
     </th>
@@ -204,7 +204,7 @@ function Th({
 function Td({ value, muted = false }: { value: number; muted?: boolean }) {
   return (
     <td
-      className={`tnum py-3 pl-3 text-right ${muted ? "text-text-subtle" : value >= 0 ? "text-up" : "text-down"}`}
+      className={`tnum py-3.5 px-3 text-right ${muted ? "text-text-subtle" : value >= 0 ? "text-up" : "text-down"}`}
     >
       {formatPercent(value)}
     </td>

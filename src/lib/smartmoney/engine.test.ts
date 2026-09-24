@@ -233,6 +233,24 @@ describe("analyzeSmartMoney", () => {
     expect(result.caveats.map((c) => c.key)).toContain("smartmoney.caveat.scope");
   });
 
+  it("formats the summary figures instead of passing raw fractions to the screen", () => {
+    // Regression: params are interpolated verbatim, so a raw fraction once
+    // reached the UI as "0.1232394361971826".
+    const b = bars(60, -0.002);
+    const tradedValue = b.reduce((s, x) => s + x.close * x.volume, 0);
+    const result = analyzeSmartMoney({
+      symbol: "BBRI",
+      bars: b,
+      foreignFlow: flow(60, (tradedValue * 0.05) / 60),
+      ownership: ownership(6, 40, 45),
+    });
+
+    const summary = result.findings.find((f) => f.key === "smartmoney.summaryLine");
+    expect(summary?.params?.priceReturn).toMatch(/^[+-]?\d+\.\d{2}%$/);
+    expect(summary?.params?.flowIntensity).toMatch(/^[+-]?\d+\.\d{2}%$/);
+    expect(summary?.params?.flowValue).toMatch(/^-?Rp /);
+  });
+
   it("states that conviction is not a return forecast", () => {
     const b = bars(60, 0.002);
     const tradedValue = b.reduce((s, x) => s + x.close * x.volume, 0);

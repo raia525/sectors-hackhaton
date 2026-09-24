@@ -64,6 +64,7 @@ export function SymbolCombobox({
   const [loading, setLoading] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
   const requestSeq = useRef(0);
 
@@ -89,7 +90,12 @@ export function SymbolCombobox({
           setMatches(data.results);
           setTotalMatches(data.totalMatches);
           setTruncated(data.truncated);
-          setOpen(data.results.length > 0);
+          // Only open for someone actually typing. The field can also be
+          // pre-filled from the URL (the ticker being analysed), and a lookup
+          // for that value must not pop a dropdown over the page on load.
+          setOpen(
+            data.results.length > 0 && document.activeElement === inputRef.current,
+          );
           setHighlighted(-1);
         })
         .catch(() => {
@@ -154,6 +160,7 @@ export function SymbolCombobox({
   return (
     <div ref={containerRef} className="relative">
       <input
+        ref={inputRef}
         id={id}
         role="combobox"
         aria-expanded={effectiveOpen}

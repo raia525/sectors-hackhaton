@@ -3,11 +3,18 @@
 /**
  * Design tokens.
  *
- * Light by default: a dominant white surface with a single warm accent
- * (orange) for every interactive and brand element. Dark mode is provided as
- * an explicit, user-controlled alternative rather than following the OS
- * preference, since "provide dark mode" is a toggle the person can reach for,
- * not a silent system default.
+ * Light by default: a soft grey canvas carrying white cards, with a single warm
+ * accent (orange) for every interactive and brand element. Dark mode is an
+ * explicit, user-controlled alternative rather than following the OS
+ * preference.
+ *
+ * Two surface families exist side by side, in both themes:
+ *
+ * - The regular surfaces (--surface, --surface-raised) for everyday cards.
+ * - "Ink" surfaces (--ink*), always dark, for the containers that hold the
+ *   primary evidence: the navigation pill, the twin panel, ranked results.
+ *   A dark block on a light page draws the eye to the one area that matters
+ *   most, and keeps charts high-contrast whichever theme is active.
  *
  * The one deliberate exception to the orange accent is the set of colours that
  * already carry a fixed meaning in a market context: green/red for price
@@ -17,20 +24,20 @@
  */
 
 :root {
-  --bg: #ffffff;
+  --bg: #f2f2f5;
   --surface: #ffffff;
-  --surface-raised: #f9f7f4;
-  --border: #ece7e0;
-  --border-strong: #ddd6cb;
+  --surface-raised: #f6f6f9;
+  --border: #e7e7ec;
+  --border-strong: #d6d6de;
 
-  --text: #1c1917;
-  --text-muted: #6b6560;
-  --text-subtle: #a39c93;
+  --text: #15151a;
+  --text-muted: #62626d;
+  --text-subtle: #9c9ca8;
 
   /* Brand accent: orange, used for every interactive and identity element. */
   --accent: #ea580c;
   --accent-hover: #c2410c;
-  --accent-soft: #fff1e8;
+  --accent-soft: #fff0e6;
   --accent-contrast: #ffffff;
 
   /* Semantic colours, intentionally not orange: price direction and the
@@ -44,9 +51,19 @@
   --signal-moderate: #a16207;
   --signal-normal: #57534e;
 
-  --radius: 14px;
-  --radius-sm: 8px;
-  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04), 0 8px 24px -12px rgba(28, 25, 23, 0.08);
+  /* Ink: the always-dark container family. */
+  --ink: #18181d;
+  --ink-raised: #23232a;
+  --ink-border: #2f2f38;
+  --ink-border-strong: #3d3d48;
+  --ink-text: #f4f4f7;
+  --ink-muted: #a9a9b4;
+  --ink-subtle: #72727e;
+
+  --radius-lg: 26px;
+  --radius: 20px;
+  --radius-sm: 14px;
+  --shadow-card: 0 1px 2px rgba(21, 21, 26, 0.04), 0 10px 30px -16px rgba(21, 21, 26, 0.12);
 }
 
 /**
@@ -57,20 +74,20 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #14100c;
-  --surface: #1c1712;
-  --surface-raised: #241d17;
-  --border: #332a21;
-  --border-strong: #46392c;
+  --bg: #0e0e11;
+  --surface: #17171c;
+  --surface-raised: #1f1f25;
+  --border: #2a2a31;
+  --border-strong: #37373f;
 
-  --text: #f5efe8;
-  --text-muted: #b3a89c;
-  --text-subtle: #7d7268;
+  --text: #f3f3f6;
+  --text-muted: #a6a6b0;
+  --text-subtle: #6f6f7a;
 
-  --accent: #fb923c;
-  --accent-hover: #fdba74;
-  --accent-soft: #3a2410;
-  --accent-contrast: #1c1712;
+  --accent: #fb7a2e;
+  --accent-hover: #fd9a5c;
+  --accent-soft: #3a1f0e;
+  --accent-contrast: #140c06;
 
   --up: #4ade80;
   --down: #f87171;
@@ -80,11 +97,71 @@
   --signal-moderate: #fde047;
   --signal-normal: #a8a29e;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  /* In dark mode ink sits darker than the regular surface, so the containers
+     still read as a distinct, heavier block. */
+  --ink: #08080a;
+  --ink-raised: #141418;
+  --ink-border: #24242b;
+  --ink-border-strong: #31313a;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -16px rgba(0, 0, 0, 0.6);
 }
 
 :root:not([data-theme="light"]) {
   color-scheme: light;
+}
+
+/**
+ * An ink container re-points the regular tokens at their dark counterparts.
+ *
+ * Every component already reads its colours through these tokens, so anything
+ * placed inside `.ink` (a chart, a list, a card) renders dark with no changes
+ * of its own. That is what lets the same components appear in a white card on
+ * one page and a dark panel on another.
+ */
+@layer components {
+  .ink {
+    color-scheme: dark;
+    --surface: var(--ink);
+    --surface-raised: var(--ink-raised);
+    --border: var(--ink-border);
+    --border-strong: var(--ink-border-strong);
+    --text: var(--ink-text);
+    --text-muted: var(--ink-muted);
+    --text-subtle: var(--ink-subtle);
+    --accent-soft: rgba(251, 122, 46, 0.16);
+    --up: #4ade80;
+    --down: #f87171;
+    --signal-extreme: #c4b5fd;
+    --signal-significant: #fca5a5;
+    --signal-moderate: #fde047;
+    --signal-normal: #b5b0ab;
+    background-color: var(--ink);
+    color: var(--ink-text);
+  }
+
+  /**
+   * The accent panel: a warm gradient block for the single most important
+   * figure set on a page. Tokens are re-pointed to white on orange so nested
+   * components stay readable. Price direction inside it is shown with white
+   * chips carrying green or red marks, since green and red text directly on
+   * orange would fail contrast.
+   */
+  .accent-panel {
+    color-scheme: dark;
+    --surface: rgba(255, 255, 255, 0.12);
+    --surface-raised: rgba(255, 255, 255, 0.16);
+    --border: rgba(255, 255, 255, 0.22);
+    --border-strong: rgba(255, 255, 255, 0.32);
+    --text: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.82);
+    --text-subtle: rgba(255, 255, 255, 0.66);
+    --accent: #ffffff;
+    --accent-soft: rgba(255, 255, 255, 0.18);
+    --accent-contrast: #c2410c;
+    background-image: linear-gradient(140deg, #fb8a3c 0%, #ea580c 48%, #c2410c 100%);
+    color: #ffffff;
+  }
 }
 
 @theme inline {
@@ -106,26 +183,36 @@
   --color-signal-significant: var(--signal-significant);
   --color-signal-moderate: var(--signal-moderate);
   --color-signal-normal: var(--signal-normal);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jakarta);
 }
 
-* {
-  border-color: var(--border);
+/*
+ * Base styles live in the base layer. Tailwind v4 emits utilities into a
+ * cascade layer, and unlayered rules beat layered ones regardless of
+ * specificity, so an unlayered `* { border-color }` would silently override
+ * every border colour utility (border-transparent, focus:border-accent, ...).
+ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  font-feature-settings: "cv02", "cv03", "cv04";
-}
-
-/* Figures line up in columns when tabular numerals are on. */
+/**
+ * Figures line up in columns when tabular numerals are on. The same typeface
+ * as the prose, rather than a monospace, so large headline numbers read as
+ * part of the design instead of as code.
+ */
 .tnum {
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-feature-settings: "tnum";
 }
 
 @media (prefers-reduced-motion: reduce) {

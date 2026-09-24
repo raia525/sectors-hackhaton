@@ -17,7 +17,7 @@ export function LanguageToggle() {
     <div
       role="group"
       aria-label={t("language.label")}
-      className="flex items-center rounded-full border border-border p-0.5 text-xs"
+      className="flex h-10 items-center rounded-full border border-border bg-surface p-1 text-xs shadow-[var(--shadow-card)]"
     >
       {LOCALES.map((code) => {
         const active = locale === code;
@@ -28,7 +28,7 @@ export function LanguageToggle() {
             onClick={() => setLocale(code)}
             aria-pressed={active}
             aria-label={LOCALE_LABELS[code]}
-            className={`rounded-full px-2 py-1 font-medium uppercase transition-colors ${
+            className={`h-full rounded-full px-3 font-bold uppercase transition-colors ${
               active
                 ? "bg-accent text-accent-contrast"
                 : "text-text-subtle hover:text-text"

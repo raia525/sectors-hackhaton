@@ -4,7 +4,17 @@ import { MAX_COMPARE, MIN_COMPARE } from "@/lib/analysis/constants";
 import { CompareForm } from "@/components/CompareForm";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { CompareSkeleton } from "@/components/CompareSkeleton";
-import { Caveats, EmptyState } from "@/components/ui/primitives";
+import {
+  Card,
+  CardHeader,
+  Caveats,
+  Container,
+  EmptyState,
+  InkPanel,
+  PageHeader,
+  formatPercent,
+  formatSigned,
+} from "@/components/ui/primitives";
 import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata = {
@@ -23,37 +33,28 @@ export default async function ComparePage({
   const { t } = await getTranslator();
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="mb-8 max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-text">
-          {t("compare.title")}
-        </h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-text-muted">
-          {t("compare.description")}
-        </p>
-      </div>
+    <Container className="space-y-8 py-8 lg:py-10">
+      <PageHeader title={t("compare.title")} description={t("compare.description")} />
 
-      <CompareForm initialSymbols={symbols} />
+      <Card>
+        <CardHeader title={t("compare.formTitle")} />
+        <CompareForm initialSymbols={symbols} />
+      </Card>
 
-      <div className="mt-10">
-        {symbols.length === 0 ? (
-          <EmptyState
-            title={t("compare.emptyTitle")}
-            description={t("compare.emptyDescription", {
-              min: MIN_COMPARE,
-              max: MAX_COMPARE,
-            })}
-          />
-        ) : (
-          <Suspense
-            key={symbols.join(",")}
-            fallback={<CompareSkeleton count={symbols.length} />}
-          >
-            <ComparisonResults symbols={symbols} />
-          </Suspense>
-        )}
-      </div>
-    </div>
+      {symbols.length === 0 ? (
+        <EmptyState
+          title={t("compare.emptyTitle")}
+          description={t("compare.emptyDescription", {
+            min: MIN_COMPARE,
+            max: MAX_COMPARE,
+          })}
+        />
+      ) : (
+        <Suspense key={symbols.join(",")} fallback={<CompareSkeleton count={symbols.length} />}>
+          <ComparisonResults symbols={symbols} />
+        </Suspense>
+      )}
+    </Container>
   );
 }
 
@@ -63,9 +64,35 @@ async function ComparisonResults({ symbols }: { symbols: string[] }) {
     getTranslator(),
   ]);
 
+  // The summary reads the ranking back as a sentence: who is doing the most
+  // on their own, and who is simply moving with their peers. It restates the
+  // table rather than adding to it.
+  const [top] = result.ranked;
+  const bottom = result.ranked.length > 1 ? result.ranked.at(-1) : undefined;
+  const summary = top
+    ? t("compare.summaryLead", {
+        symbol: top.symbol,
+        specific: formatPercent(top.idiosyncratic),
+        z: formatSigned(top.zScore),
+      }) +
+      (bottom
+        ? t("compare.summaryTail", { symbol: bottom.symbol, z: formatSigned(bottom.zScore) })
+        : "")
+    : null;
+
   return (
-    <div className="space-y-4">
-      <ComparisonTable result={result} />
+    <div className="space-y-6">
+      <InkPanel>
+        <h2 className="text-[18px] font-extrabold tracking-tight text-text">
+          {t("compare.resultsTitle")}
+        </h2>
+        {summary ? (
+          <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-text-muted">{summary}</p>
+        ) : null}
+        <div className="mt-6">
+          <ComparisonTable result={result} />
+        </div>
+      </InkPanel>
       <Caveats items={result.caveats.map((c) => tm(c))} title={t("compare.howToRead")} />
     </div>
   );
