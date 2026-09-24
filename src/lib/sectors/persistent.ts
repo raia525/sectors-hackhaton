@@ -61,8 +61,12 @@ export class PostgresCache implements SectorsCache {
 
       if (row.expiresAt.getTime() <= Date.now()) {
         // Expired rows are cleaned up lazily rather than by a scheduled sweep,
-        // which keeps the deployment free of another moving part.
-        await prisma.apiCache.delete({ where: { key } }).catch(() => {});
+        // which keeps the deployment free of another moving part. deleteMany
+        // rather than delete: concurrent requests racing to read the same
+        // stale key can both reach this branch, and delete() throws (loudly,
+        // even through .catch, since Prisma logs before rejecting) when the
+        // row the other request already removed no longer exists.
+        await prisma.apiCache.deleteMany({ where: { key } }).catch(() => {});
         return null;
       }
 
@@ -97,7 +101,9 @@ export class PostgresCache implements SectorsCache {
   async delete(key: string): Promise<void> {
     this.hot.delete(key);
     if (databaseUnavailable) return;
-    await prisma.apiCache.delete({ where: { key } }).catch(() => {});
+    // deleteMany rather than delete: see the comment in get() on why delete()
+    // is unsafe when the same key can be removed concurrently.
+    await prisma.apiCache.deleteMany({ where: { key } }).catch(() => {});
   }
 
   private remember(key: string, value: unknown, expiresAt: number): void {

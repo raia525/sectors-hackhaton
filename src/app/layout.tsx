@@ -31,11 +31,23 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // ThemeScript sets data-theme in <head> before React hydrates, so the
+      // attribute is present in the DOM but absent from the server-rendered
+      // markup React compares against. That mismatch is intentional (it is
+      // what avoids a flash of the wrong theme) and React leaves the
+      // attribute in place regardless; this only silences the console
+      // warning for a difference that is expected, not a real bug.
+      suppressHydrationWarning
     >
       <head>
         <ThemeScript />
       </head>
-      <body className="flex min-h-full flex-col bg-bg">
+      <body
+        className="flex min-h-full flex-col bg-bg"
+        // Browser extensions (Grammarly and similar) inject their own
+        // attributes into <body> before hydration; same rationale as above.
+        suppressHydrationWarning
+      >
         <I18nProvider initialLocale={locale}>
           <SkipLink />
           <SiteHeader />
