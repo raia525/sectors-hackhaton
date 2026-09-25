@@ -1,10 +1,20 @@
 import "server-only";
-import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  randomInt,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { getEnv } from "@/lib/env";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
+import {
+  buildSessionToken,
+  parseSessionToken,
+  SESSION_COOKIE,
+} from "@/lib/auth/session";
 
 /**
  * Minimal session authentication.
@@ -22,8 +32,15 @@ import type { TranslationKey } from "@/lib/i18n/dictionary";
  * - Session cookies are HMAC-signed, so a user cannot edit their own cookie to
  *   become another user. The cookie is httpOnly, so page scripts cannot read
  *   it, and sameSite lax, which blocks the cross-site form posts that drive
- *   CSRF while keeping ordinary navigation working.
+ *   CSRF while keeping ordinary navigation working. The signing and parsing
+ *   logic itself lives in src/lib/auth/session.ts, free of Prisma and
+ *   next/headers, so middleware can reuse it in the edge runtime.
  * - Every comparison of a secret is timing-safe.
+ * - Sign in is two factor: a correct password only issues a one time code by
+ *   email, and a session is created solely once that code is verified (see
+ *   src/app/signin/actions.ts). Verification and reset links carry a random
+ *   token that is stored only as its hash, so a database leak cannot be used
+ *   to sign in as someone or reset their password.
  */
 
 const scrypt = promisify(scryptCallback) as (
@@ -32,8 +49,6 @@ const scrypt = promisify(scryptCallback) as (
   keylen: number,
 ) => Promise<Buffer>;
 
-const SESSION_COOKIE = "shadow_session";
-const SESSION_DAYS = 30;
 const KEY_LENGTH = 64;
 
 export async function hashPassword(password: string): Promise<string> {
@@ -59,29 +74,20 @@ export async function verifyPassword(
   }
 }
 
-/** Signs a payload so it cannot be forged by the holder of the cookie. */
-function sign(value: string): string {
-  return createHmac("sha256", getEnv().AUTH_SECRET).update(value).digest("hex");
-}
-
-function verifySignature(value: string, signature: string): boolean {
-  const expected = Buffer.from(sign(value));
-  const provided = Buffer.from(signature);
-  if (expected.length !== provided.length) return false;
-  return timingSafeEqual(expected, provided);
-}
-
-export async function createSession(userId: string): Promise<void> {
-  const expires = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
-  const payload = `${userId}.${expires}`;
-  const token = `${payload}.${sign(payload)}`;
+/**
+ * Starts a session. `rememberMe` picks the cookie's lifetime; the payload
+ * always carries its own issue time and expiry, independent of the cookie's
+ * own `maxAge`, so a copied cookie cannot outlive what it was signed for.
+ */
+export async function createSession(userId: string, rememberMe: boolean): Promise<void> {
+  const { token, maxAgeSeconds } = buildSessionToken(userId, rememberMe);
 
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_DAYS * 24 * 60 * 60,
+    maxAge: maxAgeSeconds,
   });
 }
 
@@ -89,33 +95,62 @@ export async function destroySession(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
 }
 
-/** Returns the signed-in user's id, or null. Verifies signature and expiry. */
+/** Returns the signed-in user's id, or null. Verifies signature and expiry only. */
 export async function getSessionUserId(): Promise<string | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-
-  const lastDot = token.lastIndexOf(".");
-  if (lastDot === -1) return null;
-
-  const payload = token.slice(0, lastDot);
-  const signature = token.slice(lastDot + 1);
-  if (!verifySignature(payload, signature)) return null;
-
-  const [userId, expiresRaw] = payload.split(".");
-  const expires = Number(expiresRaw);
-  if (!userId || !Number.isFinite(expires) || Date.now() > expires) return null;
-
-  return userId;
+  return parseSessionToken(token);
 }
 
-export async function getCurrentUser() {
-  const userId = await getSessionUserId();
-  if (!userId) return null;
+export { parseSessionToken };
 
-  return prisma.user.findUnique({
+export async function getCurrentUser() {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const userId = parseSessionToken(token);
+  if (!userId || !token) return null;
+
+  const issuedAtRaw = token.split(".")[1];
+  const issuedAt = Number(issuedAtRaw);
+
+  const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, passwordChangedAt: true },
   });
+  if (!user) return null;
+
+  // A session issued before the account's most recent password reset is
+  // stale: the reset is meant to sign out every other browser, and this is
+  // what enforces that without a server-side session table.
+  if (
+    user.passwordChangedAt &&
+    Number.isFinite(issuedAt) &&
+    issuedAt < user.passwordChangedAt.getTime()
+  ) {
+    return null;
+  }
+
+  return { id: user.id, email: user.email, name: user.name };
+}
+
+/** A random token for an email verification or password reset link. */
+export function generateToken(): string {
+  return randomBytes(32).toString("hex");
+}
+
+/**
+ * Hashes a token or one time code for storage and lookup.
+ *
+ * A plain SHA-256 is enough here, unlike a password hash: the input already
+ * has as much entropy as the hash function's output (32 random bytes, or a
+ * uniform six digit code drawn against a short expiry and a capped number of
+ * attempts), so there is no dictionary to slow down against.
+ */
+export function hashToken(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+/** A crypto-random six digit code, zero-padded, for a sign-in OTP. */
+export function generateOtp(): string {
+  return randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
 /** Password policy, applied at registration. Returns a translation key. */

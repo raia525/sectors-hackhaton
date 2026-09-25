@@ -23,13 +23,67 @@ model User {
   /// active browser session to read a cookie from. Kept in sync with the
   /// viewer's cookie choice on each authenticated request; "en" or "id".
   locale       String   @default("en")
+  /// Null until the sign up verification link is clicked. Sign in is
+  /// refused while this is null, so an account cannot be used with an email
+  /// address its holder does not control.
+  emailVerifiedAt   DateTime?
+  /// Bumped on every successful password reset. A session cookie issued
+  /// before this moment is treated as invalid, which is what forces every
+  /// other signed-in browser to sign in again after a reset.
+  passwordChangedAt DateTime?
   createdAt    DateTime @default(now())
 
   watchlistItems WatchlistItem[]
   holdings       Holding[]
   notifications  Notification[]
+  authTokens     AuthToken[]
+  loginOtps      LoginOtp[]
 
   @@map("users")
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+/// Single use, expiring tokens for email verification and password reset
+/// links. Only a hash of the token is stored, the same reasoning as a
+/// password hash: a database leak must not hand out working links.
+model AuthToken {
+  id        String       @id @default(cuid())
+  userId    String
+  purpose   TokenPurpose
+  tokenHash String       @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("auth_tokens")
+}
+
+/// One outstanding one time code for the second step of sign in. Only a
+/// hash of the code is stored. Capped attempts stop the six digit space
+/// from being brute forced inside the code's own expiry window.
+model LoginOtp {
+  id         String    @id @default(cuid())
+  userId     String
+  codeHash   String
+  /// The remember me choice made at the password step, carried through to
+  /// the session once the code is verified.
+  rememberMe Boolean   @default(false)
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("login_otps")
 }
 
 model WatchlistItem {

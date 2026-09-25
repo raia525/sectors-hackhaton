@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, renderDigestEmail } from "./email";
+import {
+  escapeHtml,
+  renderDigestEmail,
+  renderOtpEmail,
+  renderPasswordResetEmail,
+  renderVerificationEmail,
+} from "./email";
 import { msg } from "@/lib/i18n/message";
 import type { Alert } from "./rules";
 
@@ -112,5 +118,74 @@ describe("renderDigestEmail", () => {
     const rendered = renderDigestEmail("id", null, { alerts: [alert()], omitted: 0 });
     expect(rendered.html).toMatch(/bukan saran investasi/);
     expect(rendered.text).toMatch(/bukan saran investasi/);
+  });
+});
+
+describe("renderVerificationEmail", () => {
+  it("includes the verification link in both formats", () => {
+    const url = "https://example.com/verify-email?token=abc123";
+    const rendered = renderVerificationEmail("en", "Rai", url);
+    expect(rendered.html).toContain(url);
+    expect(rendered.text).not.toContain("<a href");
+    expect(rendered.html).not.toContain("<script");
+  });
+
+  it("escapes the recipient name", () => {
+    const rendered = renderVerificationEmail("en", `<b>Rai</b>`, "https://example.com/x");
+    expect(rendered.html).toContain("&lt;b&gt;Rai&lt;/b&gt;");
+    expect(rendered.html).not.toContain("<b>Rai</b>");
+  });
+
+  it("renders in Indonesian", () => {
+    const rendered = renderVerificationEmail("id", null, "https://example.com/x");
+    expect(rendered.subject).toMatch(/Konfirmasi email/);
+    expect(rendered.html).toMatch(/Verifikasi email/);
+  });
+
+  it("carries the disclaimer in both formats", () => {
+    const rendered = renderVerificationEmail("en", null, "https://example.com/x");
+    expect(rendered.html).toMatch(/not investment advice/);
+    expect(rendered.text).toMatch(/not investment advice/);
+  });
+});
+
+describe("renderOtpEmail", () => {
+  it("shows the code in the subject, html and text", () => {
+    const rendered = renderOtpEmail("en", "Rai", "042817");
+    expect(rendered.subject).toContain("042817");
+    expect(rendered.html).toContain("042817");
+    expect(rendered.text).toContain("042817");
+  });
+
+  it("states an expiry window", () => {
+    const rendered = renderOtpEmail("en", null, "042817");
+    expect(rendered.html).toMatch(/10 minutes/);
+    expect(rendered.text).toMatch(/10 minutes/);
+  });
+
+  it("renders in Indonesian", () => {
+    const rendered = renderOtpEmail("id", null, "042817");
+    expect(rendered.html).toMatch(/Kode masuk Anda/);
+    expect(rendered.html).toContain("042817");
+  });
+});
+
+describe("renderPasswordResetEmail", () => {
+  it("includes the reset link in both formats", () => {
+    const url = "https://example.com/reset-password?token=xyz789";
+    const rendered = renderPasswordResetEmail("en", "Rai", url);
+    expect(rendered.html).toContain(url);
+    expect(rendered.text).not.toContain("<a href");
+  });
+
+  it("renders in Indonesian", () => {
+    const rendered = renderPasswordResetEmail("id", null, "https://example.com/x");
+    expect(rendered.subject).toMatch(/Atur ulang password/);
+  });
+
+  it("carries the disclaimer in both formats", () => {
+    const rendered = renderPasswordResetEmail("en", null, "https://example.com/x");
+    expect(rendered.html).toMatch(/not investment advice/);
+    expect(rendered.text).toMatch(/not investment advice/);
   });
 });

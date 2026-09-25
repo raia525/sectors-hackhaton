@@ -1,18 +1,8 @@
-import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { WatchlistManager } from "@/components/WatchlistManager";
 import { NotificationList } from "@/components/NotificationList";
-import {
-  Card,
-  CardHeader,
-  Container,
-  IconBadge,
-  InkPanel,
-  PageHeader,
-} from "@/components/ui/primitives";
-import { IconBell } from "@/components/ui/icons";
-import { AuthBenefits } from "@/components/AuthBenefits";
+import { Card, CardHeader, Container, InkPanel, PageHeader } from "@/components/ui/primitives";
 import { getTranslator } from "@/lib/i18n/server";
 
 export const metadata = {
@@ -23,44 +13,20 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Reached only with a valid session: middleware (src/middleware.ts) redirects
+ * a signed-out visitor to /signin before this page ever renders. getCurrentUser
+ * is still called and still checked, since middleware only verifies the
+ * cookie's signature and expiry, not the database-backed passwordChangedAt
+ * invalidation that a very recent password reset relies on.
+ */
 export default async function WatchlistPage() {
   const [user, { t }] = await Promise.all([getCurrentUser(), getTranslator()]);
 
   if (!user) {
     return (
       <Container className="space-y-8 py-8 lg:py-10">
-        <PageHeader
-          title={t("watchlist.title")}
-          description={t("watchlist.signedOutDescription")}
-        />
-        <InkPanel className="grid gap-8 p-8 lg:grid-cols-[1fr_1fr] lg:p-10">
-          <div>
-            <IconBadge>
-              <IconBell />
-            </IconBadge>
-            <h2 className="mt-5 text-[26px] font-extrabold leading-tight tracking-tight text-text">
-              {t("watchlist.signInPrompt")}
-            </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-text-muted">
-              {t("watchlist.signInDescription")}
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link
-                href="/signin"
-                className="rounded-full bg-accent px-6 py-3 text-sm font-bold text-accent-contrast transition-colors hover:bg-accent-hover"
-              >
-                {t("nav.signIn")}
-              </Link>
-              <Link
-                href="/signup"
-                className="rounded-full border border-border-strong px-6 py-3 text-sm font-bold text-text transition-colors hover:bg-surface-raised"
-              >
-                {t("watchlist.createAccount")}
-              </Link>
-            </div>
-          </div>
-          <AuthBenefits />
-        </InkPanel>
+        <PageHeader title={t("watchlist.title")} description={t("auth.gate.body")} />
       </Container>
     );
   }

@@ -463,6 +463,56 @@ export const en = {
   "auth.error.couldNotCreate": "That account could not be created. Try signing in instead.",
   "auth.error.passwordTooShort": "Use at least 10 characters. Length matters more than symbols.",
   "auth.error.passwordTooLong": "That password is too long.",
+  "auth.error.emailNotVerified":
+    "Verify your email before signing in. Check your inbox for the link, or request a new one.",
+  "auth.rememberMe": "Remember me for 30 days",
+  "auth.forgotPassword": "Forgot your password?",
+
+  // Sign in, gated redirect
+  "auth.gate.title": "Sign in to continue",
+  "auth.gate.body": "This page is available to signed-in members. Sign in or create an account first.",
+
+  // Sign in, one time code step
+  "auth.otp.title": "Enter the code we sent you",
+  "auth.otp.subtitle": "We emailed a six digit code to {email}. It expires in 10 minutes.",
+  "auth.otp.codeLabel": "Six digit code",
+  "auth.otp.submit": "Verify and sign in",
+  "auth.otp.resend": "Send a new code",
+  "auth.otp.resendSuccess": "A new code is on its way.",
+  "auth.otp.error.invalid": "That code is not right. {remaining} attempts left.",
+  "auth.otp.error.expired": "That code has expired. Request a new one.",
+  "auth.otp.error.tooManyAttempts": "Too many attempts. Sign in again to get a new code.",
+
+  // Sign up, email verification
+  "auth.verify.sentTitle": "Check your inbox",
+  "auth.verify.sentBody":
+    "We sent a verification link to {email}. Open it to activate your account, then sign in.",
+  "auth.verify.resendCta": "Send the link again",
+  "auth.verify.resendSuccess": "If that address has an account, a new link is on its way.",
+  "auth.verify.successTitle": "Email verified",
+  "auth.verify.successBody": "Your account is active. Sign in to continue.",
+  "auth.verify.errorTitle": "That link did not work",
+  "auth.verify.errorExpired": "This verification link has expired. Request a new one from the sign up page.",
+  "auth.verify.errorInvalid": "This verification link is not valid, or has already been used.",
+
+  // Forgot password
+  "auth.forgot.title": "Reset your password",
+  "auth.forgot.subtitle": "Enter your email and we will send a link to choose a new password.",
+  "auth.forgot.submitCta": "Send reset link",
+  "auth.forgot.genericSent":
+    "If that address has an account, a reset link is on its way. It expires in one hour.",
+  "auth.forgot.backToSignIn": "Back to sign in",
+
+  // Reset password
+  "auth.reset.title": "Choose a new password",
+  "auth.reset.subtitle": "This link is valid for one hour and can only be used once.",
+  "auth.reset.newPasswordLabel": "New password",
+  "auth.reset.submitCta": "Update password",
+  "auth.reset.successTitle": "Password updated",
+  "auth.reset.successBody": "Sign in with your new password to continue.",
+  "auth.reset.errorTitle": "That link did not work",
+  "auth.reset.errorExpired": "This reset link has expired. Request a new one.",
+  "auth.reset.errorInvalid": "This reset link is not valid, or has already been used.",
 
   // Alerts (in-app and email). Assembled server-side with no active browser
   // session, so these use the recipient's stored locale rather than a cookie.
@@ -495,6 +545,24 @@ export const en = {
   "email.omitted.plural": "alerts were",
   "email.footer.disclaimer":
     "SHADOW IDX reports what has already happened in price and news. It does not forecast returns and it is not investment advice. You are receiving this because you added these stocks to your watchlist.",
+
+  // Verification, sign-in code and password reset email
+  "email.verify.subject": "Confirm your email for SHADOW IDX",
+  "email.verify.heading": "Confirm your email",
+  "email.verify.body":
+    "Thanks for creating an account. Click the button below to confirm this is your email address and activate your account.",
+  "email.verify.cta": "Verify email",
+  "email.verify.expiry": "This link expires in 24 hours. If you did not create an account, you can ignore this email.",
+  "email.otp.subject": "Your sign-in code is {code}",
+  "email.otp.heading": "Your sign-in code",
+  "email.otp.body": "Enter this code to finish signing in to SHADOW IDX.",
+  "email.otp.expiry": "This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.",
+  "email.resetPassword.subject": "Reset your SHADOW IDX password",
+  "email.resetPassword.heading": "Reset your password",
+  "email.resetPassword.body":
+    "We received a request to reset your password. Click the button below to choose a new one.",
+  "email.resetPassword.cta": "Reset password",
+  "email.resetPassword.expiry": "This link expires in one hour. If you did not request this, you can ignore this email.",
 
   // Brand
   "brand.tagline": "Market intelligence for IDX",
@@ -1017,6 +1085,51 @@ export const id: Record<TranslationKey, string> = {
   "auth.error.couldNotCreate": "Akun tidak dapat dibuat. Coba masuk dengan akun yang sudah ada.",
   "auth.error.passwordTooShort": "Gunakan minimal 10 karakter. Panjang lebih penting daripada simbol.",
   "auth.error.passwordTooLong": "Password tersebut terlalu panjang.",
+  "auth.error.emailNotVerified":
+    "Verifikasi email Anda sebelum masuk. Cek kotak masuk Anda untuk link verifikasi, atau minta link baru.",
+  "auth.rememberMe": "Ingat saya selama 30 hari",
+  "auth.forgotPassword": "Lupa password?",
+
+  "auth.gate.title": "Masuk untuk melanjutkan",
+  "auth.gate.body": "Halaman ini tersedia untuk member yang sudah masuk. Silakan masuk atau buat akun terlebih dahulu.",
+
+  "auth.otp.title": "Masukkan kode yang kami kirimkan",
+  "auth.otp.subtitle": "Kami mengirimkan kode enam digit ke {email}. Kode berlaku selama 10 menit.",
+  "auth.otp.codeLabel": "Kode enam digit",
+  "auth.otp.submit": "Verifikasi dan masuk",
+  "auth.otp.resend": "Kirim kode baru",
+  "auth.otp.resendSuccess": "Kode baru sedang dikirim.",
+  "auth.otp.error.invalid": "Kode itu tidak sesuai. Sisa {remaining} percobaan.",
+  "auth.otp.error.expired": "Kode itu sudah kedaluwarsa. Minta kode baru.",
+  "auth.otp.error.tooManyAttempts": "Terlalu banyak percobaan. Masuk kembali untuk mendapatkan kode baru.",
+
+  "auth.verify.sentTitle": "Cek kotak masuk Anda",
+  "auth.verify.sentBody":
+    "Kami mengirimkan link verifikasi ke {email}. Buka link tersebut untuk mengaktifkan akun Anda, lalu masuk.",
+  "auth.verify.resendCta": "Kirim ulang link",
+  "auth.verify.resendSuccess": "Jika alamat itu memiliki akun, link baru sedang dikirim.",
+  "auth.verify.successTitle": "Email terverifikasi",
+  "auth.verify.successBody": "Akun Anda sudah aktif. Masuk untuk melanjutkan.",
+  "auth.verify.errorTitle": "Link itu tidak berhasil",
+  "auth.verify.errorExpired": "Link verifikasi ini sudah kedaluwarsa. Minta link baru dari halaman daftar.",
+  "auth.verify.errorInvalid": "Link verifikasi ini tidak valid, atau sudah pernah digunakan.",
+
+  "auth.forgot.title": "Atur ulang password Anda",
+  "auth.forgot.subtitle": "Masukkan email Anda dan kami akan mengirimkan link untuk memilih password baru.",
+  "auth.forgot.submitCta": "Kirim link reset",
+  "auth.forgot.genericSent":
+    "Jika alamat itu memiliki akun, link reset sedang dikirim. Link berlaku selama satu jam.",
+  "auth.forgot.backToSignIn": "Kembali ke halaman masuk",
+
+  "auth.reset.title": "Pilih password baru",
+  "auth.reset.subtitle": "Link ini berlaku selama satu jam dan hanya dapat digunakan sekali.",
+  "auth.reset.newPasswordLabel": "Password baru",
+  "auth.reset.submitCta": "Perbarui password",
+  "auth.reset.successTitle": "Password diperbarui",
+  "auth.reset.successBody": "Masuk dengan password baru Anda untuk melanjutkan.",
+  "auth.reset.errorTitle": "Link itu tidak berhasil",
+  "auth.reset.errorExpired": "Link reset ini sudah kedaluwarsa. Minta link baru.",
+  "auth.reset.errorInvalid": "Link reset ini tidak valid, atau sudah pernah digunakan.",
 
   "alert.divergenceTitle": "{symbol} diperdagangkan {magnitude}% di {direction} twin-nya",
   "alert.direction.above": "atas",
@@ -1046,6 +1159,23 @@ export const id: Record<TranslationKey, string> = {
   "email.omitted.plural": "notifikasi",
   "email.footer.disclaimer":
     "SHADOW IDX melaporkan apa yang sudah terjadi pada harga dan berita. Ini bukan prediksi return dan bukan saran investasi. Anda menerima email ini karena menambahkan saham-saham ini ke watchlist Anda.",
+
+  "email.verify.subject": "Konfirmasi email Anda untuk SHADOW IDX",
+  "email.verify.heading": "Konfirmasi email Anda",
+  "email.verify.body":
+    "Terima kasih sudah membuat akun. Klik tombol di bawah untuk mengonfirmasi bahwa ini adalah alamat email Anda dan mengaktifkan akun Anda.",
+  "email.verify.cta": "Verifikasi email",
+  "email.verify.expiry": "Link ini berlaku selama 24 jam. Jika Anda tidak membuat akun ini, abaikan email ini.",
+  "email.otp.subject": "Kode masuk Anda adalah {code}",
+  "email.otp.heading": "Kode masuk Anda",
+  "email.otp.body": "Masukkan kode ini untuk menyelesaikan proses masuk ke SHADOW IDX.",
+  "email.otp.expiry": "Kode ini berlaku selama 10 menit. Jika Anda tidak mencoba masuk, abaikan email ini.",
+  "email.resetPassword.subject": "Atur ulang password SHADOW IDX Anda",
+  "email.resetPassword.heading": "Atur ulang password Anda",
+  "email.resetPassword.body":
+    "Kami menerima permintaan untuk mengatur ulang password Anda. Klik tombol di bawah untuk memilih password baru.",
+  "email.resetPassword.cta": "Atur ulang password",
+  "email.resetPassword.expiry": "Link ini berlaku selama satu jam. Jika Anda tidak meminta ini, abaikan email ini.",
 
   "brand.tagline": "Intelijen pasar untuk IDX",
   "actions.showMore": "Tampilkan semua",
