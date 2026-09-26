@@ -6,48 +6,62 @@ import { LOCALES, LOCALE_LABELS } from "@/lib/i18n/locales";
 /**
  * Language switch, sitting next to ThemeToggle.
  *
- * In its normal form, both options are always visible as a two-way pill: a
- * dropdown for a binary choice would add a click without adding clarity.
+ * Both options are normally visible as a two-way pill: a dropdown for a
+ * binary choice would add a click without adding clarity.
  *
- * `compact` is the minimized header's form: one borderless button showing
- * the active language, which switches to the other one when clicked. With
- * exactly two languages a single click is the whole choice, so it needs no
- * menu of its own sticking out of the header.
+ * `floating` is the header's floating form: the same pill, smaller and
+ * without its own border, so it sits flush inside the header pill.
+ *
+ * `collapsed` is the minimized header's form: the inactive option shrinks
+ * away and the active one remains as a single button that switches to the
+ * other language when clicked. It collapses rather than being removed, so
+ * the change animates with the rest of the header instead of jumping.
  */
-export function LanguageToggle({ compact = false }: { compact?: boolean }) {
+export function LanguageToggle({
+  floating = false,
+  collapsed = false,
+}: {
+  floating?: boolean;
+  collapsed?: boolean;
+}) {
   const { locale, setLocale, t } = useTranslation();
-
-  if (compact) {
-    const other = LOCALES.find((code) => code !== locale) ?? locale;
-    return (
-      <button
-        type="button"
-        onClick={() => setLocale(other)}
-        aria-label={`${t("language.label")}: ${LOCALE_LABELS[locale]}. ${LOCALE_LABELS[other]}`}
-        className="flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[11px] font-bold uppercase text-text-muted transition-colors hover:bg-surface-raised hover:text-text"
-      >
-        {locale}
-      </button>
-    );
-  }
+  const other = LOCALES.find((code) => code !== locale) ?? locale;
 
   return (
     <div
       role="group"
       aria-label={t("language.label")}
-      className="flex h-10 items-center rounded-full border border-border bg-surface p-1 text-xs shadow-[var(--shadow-card)]"
+      className={`nav-anim flex items-center rounded-full text-xs ${
+        floating
+          ? "h-8 p-0"
+          : "h-10 border border-border bg-surface p-1 shadow-[var(--shadow-card)]"
+      }`}
     >
       {LOCALES.map((code) => {
         const active = locale === code;
+        const hidden = collapsed && !active;
         return (
           <button
             key={code}
             type="button"
-            onClick={() => setLocale(code)}
+            // With only the active option showing, clicking it is the way to
+            // reach the other language.
+            onClick={() => setLocale(collapsed ? other : code)}
             aria-pressed={active}
-            aria-label={LOCALE_LABELS[code]}
-            className={`h-full rounded-full px-3 font-bold uppercase transition-colors ${
-              active ? "bg-accent text-accent-contrast" : "text-text-subtle hover:text-text"
+            aria-label={LOCALE_LABELS[collapsed ? other : code]}
+            aria-hidden={hidden || undefined}
+            tabIndex={hidden ? -1 : undefined}
+            className={`nav-anim h-full overflow-hidden whitespace-nowrap rounded-full font-bold uppercase ${
+              hidden ? "max-w-0 px-0 opacity-0" : "max-w-16 px-3 opacity-100"
+            } ${
+              // Floating, the current page is already the orange pill beside
+              // this one; a second orange fill next to it would read as one
+              // blob, so the active language takes a quieter fill instead.
+              active && !collapsed
+                ? floating
+                  ? "bg-surface-raised text-text"
+                  : "bg-accent text-accent-contrast"
+                : "text-text-muted hover:bg-surface-raised hover:text-text"
             }`}
           >
             {code}

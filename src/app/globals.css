@@ -238,6 +238,31 @@
  */
 :root {
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Lets `width` animate to and from keywords such as fit-content, which is
+     what the header does when it detaches into a floating pill. Browsers
+     without it change the width instantly and animate everything else. */
+  interpolate-size: allow-keywords;
+}
+
+/* A row that scrolls sideways without showing a scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/**
+ * The header's shared motion: every property that changes between the
+ * static bar, the expanded floating pill and the minimized pill, on one
+ * curve and one duration, so the parts move together rather than in steps.
+ */
+.nav-anim {
+  transition-property:
+    width, max-width, padding, margin, border-radius, opacity, gap, height,
+    flex-grow, box-shadow, background-color, transform;
+  transition-duration: 450ms;
+  transition-timing-function: var(--ease-soft);
 }
 
 /* Unlayered so the hover shadow wins over a card's `shadow-*` utility. */

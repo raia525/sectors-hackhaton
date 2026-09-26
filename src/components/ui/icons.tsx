@@ -129,15 +129,9 @@ export const IconWallet = (p: IconProps) => (
   </Icon>
 );
 
-export const IconChevronDown = (p: IconProps) => (
+export const IconChevronRight = (p: IconProps) => (
   <Icon {...p}>
-    <path d="m6 9 6 6 6-6" />
-  </Icon>
-);
-
-export const IconChevronUp = (p: IconProps) => (
-  <Icon {...p}>
-    <path d="m6 15 6-6 6 6" />
+    <path d="m9 6 6 6-6 6" />
   </Icon>
 );
 
