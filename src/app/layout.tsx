@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeScript } from "@/components/ThemeScript";
 import { SiteHeader } from "@/components/SiteHeader";
+import { GuestHeader } from "@/components/GuestHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SkipLink } from "@/components/SkipLink";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getLocale } from "@/lib/i18n/server";
+import { getCurrentUser } from "@/lib/auth";
 import "./globals.css";
 
 /**
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const locale = await getLocale();
+  const [locale, user] = await Promise.all([getLocale(), getCurrentUser()]);
 
   return (
     <html
@@ -51,7 +53,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       >
         <I18nProvider initialLocale={locale}>
           <SkipLink />
-          <SiteHeader />
+          {/*
+            The app's menu (Analyse, Brief, Compare, Watchlist) only makes
+            sense once there is an account behind it: every one of those
+            routes redirects a signed-out visitor to /signin anyway (see
+            src/proxy.ts). A signed-out visitor sees only the landing page
+            and the auth pages, so they get a header with sign in and
+            register instead of a menu of links that would all bounce them
+            straight back here.
+          */}
+          {user ? <SiteHeader /> : <GuestHeader />}
           <main id="main" className="flex-1">
             {children}
           </main>

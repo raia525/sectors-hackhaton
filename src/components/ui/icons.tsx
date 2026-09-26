@@ -128,3 +128,15 @@ export const IconWallet = (p: IconProps) => (
     <path d="M16 14.5h1.5" />
   </Icon>
 );
+
+export const IconMenu = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </Icon>
+);
+
+export const IconClose = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m6 6 12 12M18 6 6 18" />
+  </Icon>
+);

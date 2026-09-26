@@ -39,6 +39,9 @@
   --accent-hover: #c2410c;
   --accent-soft: #fff0e6;
   --accent-contrast: #ffffff;
+  /* A brighter, more saturated orange for a flat block that needs to read as
+     the accent colour on its own, with no gradient to carry the emphasis. */
+  --accent-bright: #ff6a1a;
 
   /* Semantic colours, intentionally not orange: price direction and the
      divergence scale already mean something specific, and must stay legible
@@ -88,6 +91,7 @@
   --accent-hover: #fd9a5c;
   --accent-soft: #3a1f0e;
   --accent-contrast: #140c06;
+  --accent-bright: #ff8a3d;
 
   --up: #4ade80;
   --down: #f87171;
@@ -141,11 +145,16 @@
   }
 
   /**
-   * The accent panel: a warm gradient block for the single most important
-   * figure set on a page. Tokens are re-pointed to white on orange so nested
-   * components stay readable. Price direction inside it is shown with white
-   * chips carrying green or red marks, since green and red text directly on
-   * orange would fail contrast.
+   * The accent panel: a flat, bright orange block for the single most
+   * important figure set on a page. Tokens are re-pointed to white on
+   * orange so nested components stay readable. Price direction inside it is
+   * shown with white chips carrying green or red marks, since green and red
+   * text directly on orange would fail contrast.
+   *
+   * Flat colour, not a gradient: a multi-stop diagonal gradient reads as a
+   * raised, glossy button rather than a plain block of colour, which fights
+   * the rest of the interface's flat surfaces. One bright, saturated orange
+   * carries the same weight without the embossed look.
    */
   .accent-panel {
     color-scheme: dark;
@@ -159,7 +168,7 @@
     --accent: #ffffff;
     --accent-soft: rgba(255, 255, 255, 0.18);
     --accent-contrast: #c2410c;
-    background-image: linear-gradient(140deg, #fb8a3c 0%, #ea580c 48%, #c2410c 100%);
+    background-color: var(--accent-bright);
     color: #ffffff;
   }
 }
@@ -175,6 +184,7 @@
   --color-text-subtle: var(--text-subtle);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-bright: var(--accent-bright);
   --color-accent-soft: var(--accent-soft);
   --color-accent-contrast: var(--accent-contrast);
   --color-up: var(--up);
