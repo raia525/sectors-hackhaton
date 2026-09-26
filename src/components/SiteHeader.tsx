@@ -90,10 +90,14 @@ export function SiteHeader() {
 
   return (
     <header className="pointer-events-none sticky top-0 z-30 flex justify-center px-4 pt-4">
-      <div className="pointer-events-auto w-full max-w-5xl">
+      <div
+        className={`pointer-events-auto w-full transition-all duration-300 ${
+          minimized ? "max-w-5xl md:max-w-3xl" : "max-w-5xl"
+        }`}
+      >
         <div
-          className={`ink flex items-center gap-2 rounded-full shadow-[var(--shadow-card)] transition-all duration-300 ${
-            minimized ? "px-2 py-2 md:max-w-3xl" : "px-3 py-2.5"
+          className={`ink mx-auto flex items-center gap-2 rounded-full shadow-[var(--shadow-card)] transition-all duration-300 ${
+            minimized ? "px-2 py-2" : "px-3 py-2.5"
           }`}
         >
           <Link href="/" aria-label="SHADOW IDX" className="flex shrink-0 items-center pl-1.5">
