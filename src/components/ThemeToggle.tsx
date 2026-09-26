@@ -53,8 +53,10 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-pressed={isDark}
-      className={`flex items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-[var(--shadow-card)] transition-colors hover:border-border-strong hover:text-text ${
-        compact ? "h-8 w-8" : "h-10 w-10"
+      className={`flex items-center justify-center rounded-full text-text-muted transition-colors hover:text-text ${
+        compact
+          ? "h-8 w-8 hover:bg-surface-raised"
+          : "h-10 w-10 border border-border bg-surface shadow-[var(--shadow-card)] hover:border-border-strong"
       }`}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}

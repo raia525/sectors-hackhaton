@@ -129,6 +129,18 @@ export const IconWallet = (p: IconProps) => (
   </Icon>
 );
 
+export const IconChevronDown = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+);
+
+export const IconChevronUp = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m6 15 6-6 6 6" />
+  </Icon>
+);
+
 export const IconMenu = (p: IconProps) => (
   <Icon {...p}>
     <path d="M4 7h16M4 12h16M4 17h16" />

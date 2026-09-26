@@ -7,7 +7,7 @@ import { useTranslation } from "@/lib/i18n/client";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
 import { LogoMark } from "./ui/Logo";
-import { IconClose, IconMenu } from "./ui/icons";
+import { IconChevronDown, IconChevronUp, IconClose, IconMenu } from "./ui/icons";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 const NAV: { href: string; key: TranslationKey }[] = [
@@ -17,35 +17,44 @@ const NAV: { href: string; key: TranslationKey }[] = [
   { href: "/watchlist", key: "nav.watchlist" },
 ];
 
-/** Scroll distance before the header switches to its minimized form. */
+/** Scroll distance before the header minimizes itself. */
 const MINIMIZE_AT = 24;
 
 /**
- * The signed-in navigation.
+ * The signed-in navigation, floating over the page.
  *
- * Rendered only for a signed-in visitor (see RootLayout), floating over the
- * page rather than sitting in its own bordered row: it detaches from the top
- * of the viewport and shrinks to a compact pill once the page has scrolled
- * past MINIMIZE_AT, then expands back the moment it returns to the top. The
- * language and theme toggles stay inside the same floating pill in both
- * states, so nothing about the header moves to a different part of the
- * screen as it collapses.
+ * Two states:
  *
- * Below the `md` breakpoint there is not enough width for the logo, four
- * links and both toggles on one pill, so the links move into a menu that
- * opens as its own panel beneath the pill, the same shape at every scroll
- * position rather than wrapping into a second row that would break the
- * pill's rounded silhouette.
+ * - Expanded, at the top of the page: logo, every menu link, the two-way
+ *   language pill and the theme toggle.
+ * - Minimized, once the page scrolls: a pill sized to its content holding
+ *   only the current page, a one-button language switch and the theme
+ *   toggle, with no logo and no spare gaps.
+ *
+ * The minimized pill carries an expand button, so the full menu is one click
+ * away without scrolling back up, and an expanded header that was opened
+ * that way carries a button to minimize it again. Returning to the top of
+ * the page resets it to the automatic behaviour.
+ *
+ * Below the `md` breakpoint the expanded links move into a panel under the
+ * pill, since the logo, four links and both toggles do not fit on one row.
  */
 export function SiteHeader() {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const [minimized, setMinimized] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [expandedByUser, setExpandedByUser] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openedOnPath, setOpenedOnPath] = useState(pathname);
 
   useEffect(() => {
-    const onScroll = () => setMinimized(window.scrollY > MINIMIZE_AT);
+    const onScroll = () => {
+      const past = window.scrollY > MINIMIZE_AT;
+      setScrolled(past);
+      // Back at the top the header is expanded anyway, so a manual expand
+      // is forgotten and the next scroll down minimizes it again.
+      if (!past) setExpandedByUser(false);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -60,10 +69,107 @@ export function SiteHeader() {
     if (menuOpen) setMenuOpen(false);
   }
 
+  const minimized = scrolled && !expandedByUser;
+
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const currentPage = NAV.find((item) => isActive(item.href)) ?? NAV[0];
 
-  const links = (variant: "inline" | "menu") => (
+  const iconButton =
+    "flex items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-raised hover:text-text";
+
+  return (
+    <header className="pointer-events-none sticky top-0 z-30 flex justify-center px-4 pt-4">
+      {minimized ? (
+        <div className="ink pointer-events-auto flex w-fit items-center gap-0.5 rounded-full p-1 shadow-[var(--shadow-card)]">
+          <Link
+            href={currentPage.href}
+            aria-current="page"
+            className="whitespace-nowrap rounded-full bg-accent-bright px-4 py-1.5 text-sm font-semibold text-white"
+          >
+            {t(currentPage.key)}
+          </Link>
+          <LanguageToggle compact />
+          <ThemeToggle compact />
+          <button
+            type="button"
+            onClick={() => {
+              setExpandedByUser(true);
+              setMenuOpen(false);
+            }}
+            aria-expanded={false}
+            aria-label={t("nav.expand")}
+            className={`${iconButton} h-8 w-8`}
+          >
+            <IconChevronDown size={16} />
+          </button>
+        </div>
+      ) : (
+        <div className="pointer-events-auto w-full max-w-5xl">
+          <div className="ink flex items-center gap-2 rounded-full px-3 py-2.5 shadow-[var(--shadow-card)]">
+            <Link href="/" aria-label="SHADOW IDX" className="flex shrink-0 items-center pl-1.5">
+              <LogoMark size={30} />
+            </Link>
+
+            <nav aria-label="Main" className="hidden flex-1 md:block">
+              <NavLinks variant="inline" isActive={isActive} t={t} />
+            </nav>
+
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-expanded={menuOpen}
+                aria-controls="mobile-nav-panel"
+                aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+                className={`${iconButton} h-10 w-10 md:hidden`}
+              >
+                {menuOpen ? <IconClose size={18} /> : <IconMenu size={18} />}
+              </button>
+              {scrolled ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedByUser(false);
+                    setMenuOpen(false);
+                  }}
+                  aria-expanded
+                  aria-label={t("nav.collapse")}
+                  className={`${iconButton} h-10 w-10`}
+                >
+                  <IconChevronUp size={18} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {menuOpen ? (
+            <nav
+              id="mobile-nav-panel"
+              aria-label="Main"
+              className="ink mt-2 rounded-[var(--radius)] p-2 shadow-[var(--shadow-card)] md:hidden"
+            >
+              <NavLinks variant="menu" isActive={isActive} t={t} />
+            </nav>
+          ) : null}
+        </div>
+      )}
+    </header>
+  );
+}
+
+function NavLinks({
+  variant,
+  isActive,
+  t,
+}: {
+  variant: "inline" | "menu";
+  isActive: (href: string) => boolean;
+  t: (key: TranslationKey) => string;
+}) {
+  return (
     <ul className={variant === "inline" ? "flex items-center gap-1" : "space-y-1"}>
       {NAV.map((item) => {
         const active = isActive(item.href);
@@ -86,74 +192,5 @@ export function SiteHeader() {
         );
       })}
     </ul>
-  );
-
-  // Minimized: only the current page's own link, not the full menu. It is
-  // still a link to that same page, not a label, so it stays clickable and
-  // keeps its filled, active look; the other pages are a scroll-to-top or a
-  // click into the mobile panel away.
-  const currentPage = NAV.find((item) => isActive(item.href)) ?? NAV[0];
-
-  return (
-    <header className="pointer-events-none sticky top-0 z-30 flex justify-center px-4 pt-4">
-      <div
-        className={`pointer-events-auto w-full transition-all duration-300 ${
-          minimized ? "max-w-5xl md:max-w-3xl" : "max-w-5xl"
-        }`}
-      >
-        <div
-          className={`ink mx-auto flex items-center gap-2 rounded-full shadow-[var(--shadow-card)] transition-all duration-300 ${
-            minimized ? "px-2 py-2" : "px-3 py-2.5"
-          }`}
-        >
-          <Link href="/" aria-label="SHADOW IDX" className="flex shrink-0 items-center pl-1.5">
-            <LogoMark size={minimized ? 22 : 30} />
-          </Link>
-
-          <nav aria-label="Main" className="hidden md:block md:flex-1">
-            {minimized ? (
-              // Only the page currently open, not the whole menu: expand the
-              // header (scroll to top) to reach the others.
-              <Link
-                href={currentPage.href}
-                aria-current="page"
-                className="inline-block whitespace-nowrap rounded-full bg-accent-bright px-4 py-1.5 text-sm font-semibold text-white"
-              >
-                {t(currentPage.key)}
-              </Link>
-            ) : (
-              links("inline")
-            )}
-          </nav>
-
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 pr-0.5">
-            <LanguageToggle compact={minimized} />
-            <ThemeToggle compact={minimized} />
-            <button
-              type="button"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-expanded={menuOpen}
-              aria-controls="mobile-nav-panel"
-              aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
-              className={`flex items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-raised hover:text-text md:hidden ${
-                minimized ? "h-8 w-8" : "h-10 w-10"
-              }`}
-            >
-              {menuOpen ? <IconClose size={16} /> : <IconMenu size={16} />}
-            </button>
-          </div>
-        </div>
-
-        {menuOpen ? (
-          <nav
-            id="mobile-nav-panel"
-            aria-label="Main"
-            className="ink mt-2 rounded-[var(--radius)] p-2 shadow-[var(--shadow-card)] md:hidden"
-          >
-            {links("menu")}
-          </nav>
-        ) : null}
-      </div>
-    </header>
   );
 }
