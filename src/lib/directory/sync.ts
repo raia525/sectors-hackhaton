@@ -42,18 +42,17 @@ export async function syncCompanyDirectory(): Promise<SyncResult> {
 
     if (entries.length === 0) break;
 
-    // A batch upsert per page rather than per row: one page is a few hundred
-    // rows, and a single multi-row query is far cheaper than hundreds of
-    // round trips for what is already a rarely-run maintenance job.
-    await prisma.$transaction(
-      entries.map((e) =>
-        prisma.companyDirectoryEntry.upsert({
-          where: { symbol: e.symbol },
-          create: { symbol: e.symbol, companyName: e.companyName },
-          update: { companyName: e.companyName },
-        }),
-      ),
-    );
+    // One statement per page, not one upsert per row. Row by row was ~200
+    // round trips a page, and with the function and the database in
+    // different regions that alone ran past the hosting time limit.
+    const symbols = entries.map((e) => e.symbol);
+    const names = entries.map((e) => e.companyName);
+    await prisma.$executeRaw`
+      INSERT INTO "company_directory" ("symbol", "companyName", "updatedAt")
+      SELECT s, n, NOW() FROM UNNEST(${symbols}::text[], ${names}::text[]) AS t(s, n)
+      ON CONFLICT ("symbol") DO UPDATE
+        SET "companyName" = EXCLUDED."companyName", "updatedAt" = EXCLUDED."updatedAt"
+    `;
     entriesWritten += entries.length;
 
     if (!hasNext) break;

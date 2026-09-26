@@ -1,7 +1,11 @@
 import type { Alert } from "./rules";
 import { translate } from "@/lib/i18n/translate";
-import { renderMessage } from "@/lib/i18n/message";
+import { renderMessage, type Message } from "@/lib/i18n/message";
 import type { Locale } from "@/lib/i18n/locales";
+import { formatIdr, formatPercent, formatSigned } from "@/lib/format";
+import type { Brief } from "@/lib/intelligence/brief";
+import type { CalendarEntry } from "@/lib/intelligence/calendar";
+import { divergenceLabel, realityLabel, smartMoneyLabel } from "@/lib/intelligence/labels";
 
 /**
  * Digest email rendering.
@@ -279,6 +283,120 @@ export function renderOtpEmail(
     bodyText: `${t("email.otp.body")}\n\n${code}`,
     footnoteHtml: escapeHtml(t("email.otp.expiry")),
     footnoteText: t("email.otp.expiry"),
+  });
+}
+
+export interface BriefEmailInput {
+  runDate: string;
+  brief: Brief;
+  /** Upcoming actions on the recipient's own watchlist; empty on most days. */
+  calendar: CalendarEntry[];
+  briefUrl: string;
+}
+
+/**
+ * The daily market brief, for users who opted in.
+ *
+ * Short on purpose: the three lists most worth a glance and a link to the
+ * full page. The opening line states how many stocks were covered, so the
+ * email never reads as a statement about the whole market.
+ */
+export function renderBriefEmail(
+  locale: Locale,
+  name: string | null,
+  input: BriefEmailInput,
+): RenderedEmail {
+  const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) =>
+    translate(locale, key, params);
+  const tm = (message: Message) => renderMessage(message, t);
+  const greeting = name ? t("email.greeting.named", { name }) : t("email.greeting.anonymous");
+  const { brief, calendar, runDate } = input;
+
+  const subject =
+    brief.signalCount > 0
+      ? t("email.brief.subject", { date: runDate, count: brief.signalCount })
+      : t("email.brief.subjectNone", { date: runDate });
+
+  const sections: { title: string; lines: string[] }[] = [];
+
+  if (brief.movers.length > 0) {
+    sections.push({
+      title: t("email.brief.moversTitle"),
+      lines: brief.movers.map((r) =>
+        t("email.brief.moverLine", {
+          symbol: r.symbol,
+          specific: formatPercent(r.idioReturn),
+          z: formatSigned(r.zScore),
+          label: t(divergenceLabel(r.verdict)),
+        }),
+      ),
+    });
+  }
+  if (brief.disagreements.length > 0) {
+    sections.push({
+      title: t("email.brief.disagreementsTitle"),
+      lines: brief.disagreements.map((r) =>
+        t("email.brief.labelLine", { symbol: r.symbol, label: t(realityLabel(r.realityVerdict)) }),
+      ),
+    });
+  }
+  if (brief.smartMoney.length > 0) {
+    sections.push({
+      title: t("email.brief.smartMoneyTitle"),
+      lines: brief.smartMoney.map((r) =>
+        t("email.brief.smartMoneyLine", {
+          symbol: r.symbol,
+          label: t(smartMoneyLabel(r.smartMoneyType ?? "")),
+          conviction: Math.round(r.smartMoneyConviction ?? 0),
+        }),
+      ),
+    });
+  }
+  if (calendar.length > 0) {
+    sections.push({
+      title: t("email.brief.calendarTitle"),
+      lines: calendar.map(({ symbol, item }) => {
+        const cash =
+          item.effect?.cashIdr != null
+            ? ` ${t("actions.receiveCash", { amount: formatIdr(item.effect.cashIdr) })}`
+            : "";
+        return `${t("email.brief.calendarLine", { date: item.date, symbol, summary: tm(item.summary) })}${cash}`;
+      }),
+    });
+  }
+
+  const intro = t("email.brief.intro", { covered: brief.covered, signals: brief.signalCount });
+  const unreliable =
+    brief.unreliable.length > 0 ? t("email.brief.unreliable", { count: brief.unreliable.length }) : "";
+
+  const bodyHtml = [
+    `<p style="margin:0 0 4px;">${escapeHtml(intro)}</p>`,
+    ...sections.map(
+      (s) => `<p style="margin:18px 0 6px;font-weight:700;color:#ededec;">${escapeHtml(s.title)}</p>
+        ${s.lines.map((l) => `<p style="margin:0 0 4px;">${escapeHtml(l)}</p>`).join("")}`,
+    ),
+    unreliable ? `<p style="margin:14px 0 0;font-size:13px;color:#6e6e6d;">${escapeHtml(unreliable)}</p>` : "",
+  ].join("");
+
+  const bodyText = [
+    intro,
+    ...sections.map((s) => `\n${s.title}\n${s.lines.join("\n")}`),
+    unreliable,
+    `\n${t("email.brief.cta")}: ${input.briefUrl}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return renderTransactionalEmail({
+    locale,
+    subject,
+    greeting,
+    bodyHtml,
+    bodyText,
+    ctaLabel: t("email.brief.cta"),
+    ctaUrl: input.briefUrl,
+    footnoteHtml: escapeHtml(t("email.brief.footnote")),
+    footnoteText: t("email.brief.footnote"),
   });
 }
 

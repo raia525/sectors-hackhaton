@@ -79,6 +79,15 @@ export const TTL = {
   },
   /** Fundamentals change quarterly. */
   companyReport: 24 * 60 * 60,
+  /**
+   * A peer's report is used only to score how similar it is, never shown on
+   * screen, and a week-old P/E or market cap does not change which companies
+   * are comparable. Peers are most of an analysis's cost (four sections each,
+   * up to ten peers), so this is what makes a daily automated run affordable.
+   */
+  peerProfile: 7 * 24 * 60 * 60,
+  /** Ownership snapshots are published monthly. */
+  ownership: 7 * 24 * 60 * 60,
   /** Corporate actions are announced, then fixed. */
   corporateActions: 12 * 60 * 60,
   get news() {
@@ -200,7 +209,7 @@ export class SectorsClient {
   async companyReport<T = unknown>(
     symbol: string,
     sections: CompanyReportSection[],
-    opts: { forceRefresh?: boolean } = {},
+    opts: { forceRefresh?: boolean; ttl?: number } = {},
   ): Promise<T> {
     const ticker = this.requireSymbol(symbol);
     const unique = [...new Set(sections)].sort();
@@ -208,7 +217,7 @@ export class SectorsClient {
       throw new Error("At least one company report section must be requested.");
     }
     return this.request<T>(endpoints.companyReport(ticker), {
-      ttl: TTL.companyReport,
+      ttl: opts.ttl ?? TTL.companyReport,
       cost: unique.length,
       query: { sections: unique.join(",") },
       forceRefresh: opts.forceRefresh,
@@ -310,7 +319,7 @@ export class SectorsClient {
 
     return this.request<T>(endpoints.shareholders(ticker), {
       // Monthly snapshots, so a long TTL is safe and saves repeat spending.
-      ttl: TTL.corporateActions,
+      ttl: TTL.ownership,
       cost: 1,
       query: { year },
       forceRefresh: opts.forceRefresh,

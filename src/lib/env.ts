@@ -50,6 +50,28 @@ const schema = z.object({
     z.coerce.number().min(1).max(96).default(1),
   ),
 
+  /**
+   * Credits the daily automated run may spend. Checked before each stock, so
+   * a run can finish up to one stock's cost over it. The default covers a few
+   * stocks a day on a warm cache, which lasts a 1,000 credit budget for weeks
+   * rather than days.
+   */
+  AUTOMATION_DAILY_CREDIT_CAP: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.coerce.number().int().min(0).max(1000).default(60),
+  ),
+
+  /**
+   * Stocks the daily brief covers even when nobody watches them, comma
+   * separated. Watched stocks are always analysed first.
+   */
+  MARKET_UNIVERSE: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().default("BBRI,BBCA,BMRI,TLKM,ASII"),
+  ),
+
   /** Shared secret for the scheduled notification endpoint. */
   CRON_SECRET: z.string().min(16, "CRON_SECRET must be at least 16 characters."),
 

@@ -84,6 +84,15 @@ export function usingPersistentStore(): boolean {
   return (globalForSectors.sectorsPersistent ?? false) && isDatabaseAvailable();
 }
 
+/**
+ * Credits spent so far, from the same ledger every call is metered against.
+ * The daily run reads it before and after each stock to attribute spending.
+ */
+export async function getCreditsSpent(): Promise<number> {
+  getSectorsClient();
+  return (await globalForSectors.sectorsLedger?.spent()) ?? 0;
+}
+
 /** Ledger snapshot for the budget indicator in the UI. */
 export async function getCreditSnapshot() {
   getSectorsClient();

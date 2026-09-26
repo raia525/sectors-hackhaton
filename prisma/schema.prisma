@@ -31,6 +31,9 @@ model User {
   /// before this moment is treated as invalid, which is what forces every
   /// other signed-in browser to sign in again after a reset.
   passwordChangedAt DateTime?
+  /// Opted in to the daily market brief email. Off by default: a daily email
+  /// nobody asked for is the fastest way to train people to ignore alerts.
+  briefOptIn   Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   watchlistItems WatchlistItem[]
@@ -184,6 +187,114 @@ model CreditUsage {
 
   @@index([createdAt])
   @@map("credit_usage")
+}
+
+enum RunStatus {
+  /// Stocks are still being analysed.
+  ANALYSING
+  /// Analysis finished; alerts and emails are being sent.
+  DELIVERING
+  DONE
+  /// Superseded by the next day's run before it finished.
+  ABANDONED
+}
+
+enum RunItemStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  /// Not analysed because the day's credit cap was reached.
+  SKIPPED
+}
+
+/// One trading day's automated run.
+///
+/// The work is split into one item per stock so it can be spread across
+/// several short function invocations: a hosting plan's time limit then caps
+/// one stock's analysis, not the whole day's.
+model MarketRun {
+  id            String    @id @default(cuid())
+  /// Trading date in Jakarta time, YYYY-MM-DD.
+  runDate       String    @unique
+  status        RunStatus @default(ANALYSING)
+  /// Credits this run may spend, fixed when the run starts.
+  creditCap     Int
+  creditsSpent  Int       @default(0)
+  /// Self-triggered continuations so far, capped to stop a runaway chain.
+  continuations Int       @default(0)
+  deliveredAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  items RunItem[]
+
+  @@map("market_runs")
+}
+
+model RunItem {
+  id           String        @id @default(cuid())
+  runId        String
+  symbol       String
+  status       RunItemStatus @default(PENDING)
+  /// Order to process in: watched stocks first, the default universe after.
+  position     Int
+  claimedAt    DateTime?
+  attempts     Int           @default(0)
+  creditsSpent Int?
+  error        String?
+
+  run MarketRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, symbol])
+  @@index([runId, status])
+  @@map("run_items")
+}
+
+/// One stock's analysis on one trading day, kept as history.
+///
+/// This is what makes the product checkable: every divergence the app ever
+/// reported is stored with what happened next, so the track record page can
+/// show whether the signal has meant anything, instead of asserting that it
+/// does.
+model SignalSnapshot {
+  id               String  @id @default(cuid())
+  symbol           String
+  runDate          String
+  /// Last trading session in the analysed data.
+  asOf             String
+  companyName      String
+  sector           String?
+  zScore           Float
+  verdict          String
+  fitQuality       Float
+  constituentCount Int
+  totalReturn      Float
+  marketReturn     Float
+  sectorReturn     Float
+  idioReturn       Float
+  realityVerdict   String
+  smartMoneyType   String?
+  smartMoneyConviction Float?
+  /// The full shadow, reality check and smart money results, so alerts and
+  /// the brief are built from exactly what was analysed, with no re-fetch.
+  analysis         Json
+  /// Raw corporate actions, so each user's rupiah effect can be computed
+  /// from their own holding later without spending another credit.
+  corporateActions Json?
+
+  /// Filled in by a later run, once enough sessions have passed.
+  forwardSessions    Int?
+  forwardStockReturn Float?
+  forwardTwinReturn  Float?
+  resolvedAt         DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, runDate])
+  @@index([runDate])
+  @@index([symbol, resolvedAt])
+  @@map("signal_snapshots")
 }
 
 /// The full IDX ticker directory, downloaded once from the screener endpoint

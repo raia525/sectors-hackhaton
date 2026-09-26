@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { getCreditSnapshot, usingPersistentStore } from "@/lib/sectors/server";
 import { isEmailConfigured, verifyConnection } from "@/lib/notifications/mailer";
+import { latestRun } from "@/lib/intelligence/pipeline";
 
 /**
  * Setup check.
@@ -50,6 +51,24 @@ export async function GET(request: Request) {
     };
   } catch {
     checks.credits = "unavailable";
+  }
+
+  try {
+    const run = await latestRun();
+    checks.dailyRun = run
+      ? {
+          date: run.runDate,
+          status: run.status,
+          creditsSpent: run.creditsSpent,
+          creditCap: run.creditCap,
+          stocks: run.items.reduce<Record<string, number>>((acc, item) => {
+            acc[item.status] = (acc[item.status] ?? 0) + 1;
+            return acc;
+          }, {}),
+        }
+      : "not run yet";
+  } catch {
+    checks.dailyRun = "unavailable";
   }
 
   if (new URL(request.url).searchParams.get("smtp") === "1") {

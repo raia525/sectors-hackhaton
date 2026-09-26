@@ -1,6 +1,6 @@
 import "server-only";
 import { getSectorsClient } from "@/lib/sectors/server";
-import { CreditExhaustedError } from "@/lib/sectors/client";
+import { CreditExhaustedError, TTL } from "@/lib/sectors/client";
 import {
   companyReportSchema,
   extractPeerSymbols,
@@ -47,6 +47,8 @@ const PROFILE_SECTIONS = ["overview", "financials", "dividend", "valuation"] as 
 export interface AnalysisResult {
   symbol: string;
   companyName: string;
+  /** Null when the report does not state one. */
+  sector: string | null;
   shadow: ShadowAnalysis;
   realityCheck: RealityCheck;
   news: NewsItem[];
@@ -89,7 +91,9 @@ async function fetchProfileAndBars(
   const client = getSectorsClient();
 
   const [reportRaw, dailyRaw] = await Promise.all([
-    client.companyReport(symbol, [...PROFILE_SECTIONS]),
+    // Cached for a week: a peer's fundamentals only feed its similarity
+    // score, so a slightly older figure changes nothing a viewer sees.
+    client.companyReport(symbol, [...PROFILE_SECTIONS], { ttl: TTL.peerProfile }),
     client.dailyTransaction(symbol),
   ]);
 
@@ -205,6 +209,7 @@ export async function analyzeSymbol(
   return {
     symbol,
     companyName: targetProfile.companyName,
+    sector: targetProfile.sector,
     shadow,
     realityCheck: runRealityCheck(shadow, news),
     news,

@@ -1,8 +1,9 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { analyzeSymbol } from "@/lib/analysis/service";
 import { summarizeCorporateActions } from "@/lib/analysis/corporate-actions";
-import { getSectorsClient } from "@/lib/sectors/server";
+import type { RealityCheck } from "@/lib/analysis/reality-check";
+import type { ShadowAnalysis } from "@/lib/shadow/types";
 import {
   buildDigest,
   evaluateCorporateActionAlerts,
@@ -17,173 +18,165 @@ import { translate } from "@/lib/i18n/translate";
 import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locales";
 
 /**
- * Scheduled alert run.
+ * Watchlist alert delivery.
  *
- * Two properties matter here beyond correctness.
+ * Works from analyses the daily run has already stored (see
+ * src/lib/intelligence/pipeline.ts) rather than analysing anything itself.
+ * Each symbol is analysed once however many users watch it, and delivery
+ * never spends a credit.
  *
- * Credit cost: watchlists across users overlap heavily, so symbols are analysed
- * once and the result reused for every user watching them. Analysing per user
- * would multiply the credit cost by the number of subscribers for no benefit.
- *
- * Partial failure: one symbol failing must not abort the run and silence
- * everyone else's alerts, so each symbol is isolated and its failure recorded.
+ * Partial failure: one user's delivery failing must not silence everyone
+ * else's alerts, so each user is isolated and failures are counted.
  */
 
-export interface RunSummary {
-  symbolsAnalysed: number;
-  alertsCreated: number;
-  emailsSent: number;
-  failures: { symbol: string; reason: string }[];
-  skipped: string[];
+/** What delivery needs from one stock's stored analysis. */
+export interface StoredAnalysis {
+  shadow: ShadowAnalysis;
+  realityCheck: RealityCheck;
+  /** Raw corporate actions, summarised here against each user's holding. */
+  corporateActions: unknown;
 }
 
-export async function runScheduledAlerts(now = new Date()): Promise<RunSummary> {
-  const summary: RunSummary = {
-    symbolsAnalysed: 0,
+export interface DeliverySummary {
+  alertsCreated: number;
+  emailsSent: number;
+  /** Watched symbols with no analysis today, for example past the credit cap. */
+  notAnalysed: string[];
+  failures: number;
+}
+
+export async function deliverAlerts(
+  analyses: Map<string, StoredAnalysis>,
+  now = new Date(),
+): Promise<DeliverySummary> {
+  const summary: DeliverySummary = {
     alertsCreated: 0,
     emailsSent: 0,
-    failures: [],
-    skipped: [],
+    notAnalysed: [],
+    failures: 0,
   };
 
   const watchItems = await prisma.watchlistItem.findMany({
+    // Only verified accounts: an unverified address may not belong to the
+    // person who typed it, and must not start receiving mail.
+    where: { user: { emailVerifiedAt: { not: null } } },
     include: { user: { select: { id: true, email: true, name: true, locale: true } } },
   });
 
-  if (watchItems.length === 0) return summary;
-
-  // Analyse each distinct symbol once, however many users watch it.
-  const symbols = [...new Set(watchItems.map((w) => w.symbol))];
-  const analyses = new Map<string, Awaited<ReturnType<typeof analyzeSymbol>>>();
-
-  for (const symbol of symbols) {
-    try {
-      analyses.set(symbol, await analyzeSymbol(symbol));
-      summary.symbolsAnalysed += 1;
-    } catch (error) {
-      summary.failures.push({
-        symbol,
-        reason: error instanceof Error ? error.message : "Unknown failure",
-      });
-    }
-  }
-
-  // Group the work by user so each one receives a single digest.
+  const notAnalysed = new Set<string>();
   const byUser = new Map<string, typeof watchItems>();
   for (const item of watchItems) {
+    if (!analyses.has(item.symbol)) notAnalysed.add(item.symbol);
     const bucket = byUser.get(item.userId);
     if (bucket) bucket.push(item);
     else byUser.set(item.userId, [item]);
   }
+  summary.notAnalysed = [...notAnalysed].sort();
 
   for (const [userId, items] of byUser) {
-    const alerts: Alert[] = [];
-    const touched: { id: string; z: number }[] = [];
-
-    for (const item of items) {
-      const analysis = analyses.get(item.symbol);
-      if (!analysis) continue;
-
-      const state: WatchState = {
-        symbol: item.symbol,
-        zScoreThreshold: item.zScoreThreshold,
-        notifyOnCorporateAction: item.notifyOnCorporateAction,
-        notifyOnSmartMoney: item.notifyOnSmartMoney,
-        lastNotifiedAt: item.lastNotifiedAt,
-        lastNotifiedZ: item.lastNotifiedZ,
-      };
-
-      const divergence = evaluateDivergenceAlert(
-        state,
-        analysis.shadow,
-        analysis.realityCheck,
-        now,
+    try {
+      const delivered = await deliverToUser(userId, items, analyses, now);
+      summary.alertsCreated += delivered.alerts;
+      if (delivered.emailed) summary.emailsSent += 1;
+    } catch (error) {
+      summary.failures += 1;
+      console.error(
+        "Alert delivery failed for one user:",
+        error instanceof Error ? error.message : error,
       );
-      if (divergence) {
-        alerts.push(divergence);
-        touched.push({ id: item.id, z: analysis.shadow.zScore });
-      } else {
-        summary.skipped.push(item.symbol);
-      }
-
-      if (item.notifyOnCorporateAction) {
-        try {
-          const holding = await prisma.holding.findUnique({
-            where: { userId_symbol: { userId, symbol: item.symbol } },
-          });
-          const raw = await getSectorsClient().corporateActions(item.symbol);
-          alerts.push(
-            ...evaluateCorporateActionAlerts(
-              state,
-              summarizeCorporateActions(
-                raw,
-                holding ? { lots: holding.lots, avgPrice: holding.avgPrice } : null,
-                now,
-              ),
-              now,
-            ),
-          );
-        } catch {
-          // Corporate actions are supplementary; a failure here must not cost
-          // the user their divergence alerts.
-        }
-      }
-    }
-
-    if (alerts.length === 0) continue;
-
-    const digest = buildDigest(alerts);
-    const user = items[0].user;
-    const locale = isLocale(user.locale) ? user.locale : DEFAULT_LOCALE;
-    const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) =>
-      translate(locale, key, params);
-
-    // Resolved to plain text in the recipient's locale at send time and
-    // stored that way: a notification is a record of what was communicated,
-    // and re-resolving it later under a changed locale or dictionary would
-    // silently rewrite history.
-    await prisma.notification.createMany({
-      data: digest.alerts.map((alert) => ({
-        userId,
-        symbol: alert.symbol,
-        kind: alert.kind,
-        title: renderMessage(alert.title, t),
-        body: alert.body.map((b) => renderMessage(b, t)).join(" "),
-        payload: alert.payload as never,
-      })),
-    });
-    summary.alertsCreated += digest.alerts.length;
-
-    // Recorded only after the notifications are persisted, so a crash mid-run
-    // does not mark a symbol as notified without an alert existing.
-    for (const touchedItem of touched) {
-      await prisma.watchlistItem.update({
-        where: { id: touchedItem.id },
-        data: { lastNotifiedAt: now, lastNotifiedZ: touchedItem.z },
-      });
-    }
-
-    if (await sendDigestEmail(locale, user.email, user.name, digest)) {
-      summary.emailsSent += 1;
     }
   }
 
   return summary;
 }
 
-/**
- * Sends the digest by email.
- *
- * Returns false rather than throwing when email is unconfigured or the relay
- * refuses: the in-app notifications are already saved at this point, so a mail
- * failure should degrade the run, not fail it and lose the alerts.
- */
-async function sendDigestEmail(
-  locale: Parameters<typeof renderDigestEmail>[0],
-  email: string,
-  name: string | null,
-  digest: { alerts: Alert[]; omitted: number },
-): Promise<boolean> {
-  const { subject, html, text } = renderDigestEmail(locale, name, digest);
-  return sendMail({ to: email, subject, html, text });
+type WatchItemWithUser = Prisma.WatchlistItemGetPayload<{
+  include: { user: { select: { id: true; email: true; name: true; locale: true } } };
+}>;
+
+async function deliverToUser(
+  userId: string,
+  items: WatchItemWithUser[],
+  analyses: Map<string, StoredAnalysis>,
+  now: Date,
+): Promise<{ alerts: number; emailed: boolean }> {
+  const alerts: Alert[] = [];
+  const touched: { id: string; z: number }[] = [];
+
+  const holdings = await prisma.holding.findMany({ where: { userId } });
+  const holdingBySymbol = new Map(holdings.map((h) => [h.symbol, h]));
+
+  for (const item of items) {
+    const analysis = analyses.get(item.symbol);
+    if (!analysis) continue;
+
+    const state: WatchState = {
+      symbol: item.symbol,
+      zScoreThreshold: item.zScoreThreshold,
+      notifyOnCorporateAction: item.notifyOnCorporateAction,
+      notifyOnSmartMoney: item.notifyOnSmartMoney,
+      lastNotifiedAt: item.lastNotifiedAt,
+      lastNotifiedZ: item.lastNotifiedZ,
+    };
+
+    const divergence = evaluateDivergenceAlert(state, analysis.shadow, analysis.realityCheck, now);
+    if (divergence) {
+      alerts.push(divergence);
+      touched.push({ id: item.id, z: analysis.shadow.zScore });
+    }
+
+    if (item.notifyOnCorporateAction && analysis.corporateActions) {
+      const holding = holdingBySymbol.get(item.symbol);
+      alerts.push(
+        ...evaluateCorporateActionAlerts(
+          state,
+          summarizeCorporateActions(
+            analysis.corporateActions,
+            holding ? { lots: holding.lots, avgPrice: holding.avgPrice } : null,
+            now,
+          ),
+          now,
+        ),
+      );
+    }
+  }
+
+  if (alerts.length === 0) return { alerts: 0, emailed: false };
+
+  const digest = buildDigest(alerts);
+  const user = items[0].user;
+  const locale = isLocale(user.locale) ? user.locale : DEFAULT_LOCALE;
+  const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) =>
+    translate(locale, key, params);
+
+  // Resolved to plain text in the recipient's locale at send time and stored
+  // that way: a notification is a record of what was communicated, and
+  // re-resolving it later under a changed locale or dictionary would
+  // silently rewrite history.
+  await prisma.notification.createMany({
+    data: digest.alerts.map((alert) => ({
+      userId,
+      symbol: alert.symbol,
+      kind: alert.kind,
+      title: renderMessage(alert.title, t),
+      body: alert.body.map((b) => renderMessage(b, t)).join(" "),
+      payload: alert.payload as never,
+    })),
+  });
+
+  // Recorded only after the notifications are persisted, so a crash mid-run
+  // does not mark a symbol as notified without an alert existing.
+  for (const touchedItem of touched) {
+    await prisma.watchlistItem.update({
+      where: { id: touchedItem.id },
+      data: { lastNotifiedAt: now, lastNotifiedZ: touchedItem.z },
+    });
+  }
+
+  // Returns false rather than throwing when email is unconfigured or the
+  // relay refuses: the in-app notifications are already saved at this point.
+  const { subject, html, text } = renderDigestEmail(locale, user.name, digest);
+  const emailed = await sendMail({ to: user.email, subject, html, text });
+
+  return { alerts: digest.alerts.length, emailed };
 }

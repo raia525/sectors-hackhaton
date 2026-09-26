@@ -13,6 +13,11 @@ import { syncCompanyDirectory } from "@/lib/directory/sync";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/** GET is how Vercel Cron calls a route; POST is for running it by hand. */
+export async function GET(request: Request) {
+  return POST(request);
+}
+
 export async function POST(request: Request) {
   if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,8 +33,4 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ error: "Use POST." }, { status: 405 });
 }

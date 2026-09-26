@@ -21,6 +21,7 @@ export const en = {
   "nav.analyse": "Analyse",
   "nav.compare": "Compare",
   "nav.watchlist": "Watchlist",
+  "nav.brief": "Brief",
   "nav.signIn": "Sign in",
   "nav.signOut": "Sign out",
   "nav.skipToContent": "Skip to content",
@@ -564,6 +565,101 @@ export const en = {
   "email.resetPassword.cta": "Reset password",
   "email.resetPassword.expiry": "This link expires in one hour. If you did not request this, you can ignore this email.",
 
+  // Daily brief email
+  "email.brief.subject": "Market brief {date}: {count} unusual moves",
+  "email.brief.subjectNone": "Market brief {date}: no unusual moves",
+  "email.brief.intro":
+    "Across the {covered} stocks analysed today, {signals} moved beyond what their twins explain.",
+  "email.brief.moversTitle": "Largest stock-specific moves",
+  "email.brief.moverLine": "{symbol}: {specific} stock specific, z-score {z}. {label}.",
+  "email.brief.disagreementsTitle": "News and price disagree",
+  "email.brief.labelLine": "{symbol}: {label}.",
+  "email.brief.smartMoneyTitle": "Smart money positioning",
+  "email.brief.smartMoneyLine": "{symbol}: {label}, conviction {conviction} of 100.",
+  "email.brief.calendarTitle": "Your watchlist, the next 14 days",
+  "email.brief.calendarLine": "{date} {symbol}: {summary}",
+  "email.brief.unreliable":
+    "{count} stocks were left out of the rankings because their twins fit too poorly to rank.",
+  "email.brief.cta": "Open the full brief",
+  "email.brief.footnote":
+    "You receive this because you turned on the daily brief. You can turn it off on your watchlist page.",
+
+  // Market brief page
+  "brief.title": "Market brief",
+  "brief.description":
+    "What moved beyond its twin, where news and price disagree, and what is coming up on your watchlist. Prepared automatically after each trading day.",
+  "brief.asOf": "Run {date}",
+  "brief.noRunTitle": "No brief yet",
+  "brief.noRunBody":
+    "The first brief is prepared automatically after the market closes on the next trading day.",
+  "brief.inProgress": "Still being prepared: {done} of {total} stocks analysed so far.",
+  "brief.stat.covered": "Stocks covered",
+  "brief.stat.coveredCaption": "Watched stocks first, then a short default list. Not the whole market.",
+  "brief.stat.signals": "Unusual moves",
+  "brief.stat.signalsCaption": "Beyond {z} standard deviations, with a twin that fits.",
+  "brief.stat.disagreements": "News vs price",
+  "brief.stat.disagreementsCaption": "Where coverage and the move point different ways.",
+  "brief.stat.credits": "Credits used",
+  "brief.stat.creditsCaption": "Out of {cap} allowed for one day's run.",
+  "brief.moversTitle": "Largest stock-specific moves",
+  "brief.moversDescription":
+    "Ranked by how unusual the move is for each stock, in either direction.",
+  "brief.moversEmpty": "No stock had a twin reliable enough to rank today.",
+  "brief.tableNews": "News vs price",
+  "brief.disagreementsTitle": "News and price disagree",
+  "brief.disagreementsDescription":
+    "The move has no explanation in coverage yet, or coverage points the other way.",
+  "brief.disagreementsEmpty": "None today. Where there was coverage, it agreed with the move.",
+  "brief.smartMoneyTitle": "Smart money positioning",
+  "brief.smartMoneyDescription":
+    "Foreign and institutional flow disagreeing with price. Conviction scores the disagreement, not a forecast.",
+  "brief.smartMoneyEmpty": "No strong disagreement between flow and price today.",
+  "brief.conviction": "Conviction {value} of 100",
+  "brief.sectorTitle": "Sector view",
+  "brief.sectorDescription":
+    "The average split of the move, for sectors with at least two covered stocks.",
+  "brief.sectorEmpty": "Too few stocks per sector today to average.",
+  "brief.sectorSingle": "Only one stock covered, so no sector average: {sectors}.",
+  "brief.tableSector": "Sector",
+  "brief.tableStocks": "Stocks",
+  "brief.tableSignals": "Unusual",
+  "brief.calendarTitle": "Your watchlist, the next {days} days",
+  "brief.calendarDescription":
+    "Upcoming dividends, splits and meetings, in rupiah where you recorded a position.",
+  "brief.calendarEmpty": "Nothing scheduled in the coming days for the stocks you watch.",
+  "brief.calendarNoWatchlist":
+    "Add stocks to your watchlist to see their upcoming corporate actions here.",
+  "brief.calendarNotCovered": "Not yet covered by a daily run: {symbols}.",
+  "brief.trackTitle": "Track record",
+  "brief.trackDescription":
+    "Has the signal meant anything so far? Each day's result is stored with what the stock did against its twin over the next {sessions} sessions.",
+  "brief.trackInsufficient":
+    "Not enough history yet. {count} signals have a known outcome so far, and a rate is shown from {needed}. Until then any percentage would look precise and mean little.",
+  "brief.trackOrdinaryCount": "{count} ordinary days have a known outcome.",
+  "brief.trackSignals": "Signal days",
+  "brief.trackOrdinary": "Ordinary days",
+  "brief.trackContinued": "of the time, the gap kept going the same way afterwards.",
+  "brief.trackExcess": "Average further move against the twin: {value}",
+  "brief.trackCount": "{count} with a known outcome",
+  "brief.trackBucketThin": "{count} so far, too few to show a rate.",
+  "brief.trackCaveat1": "The track record describes this app's own past results. It is not a forecast.",
+  "brief.trackCaveat2":
+    "The twin is refitted every day, so the later comparison uses a slightly different peer mix.",
+  "brief.trackCaveat3":
+    "Only a few stocks are covered each day, so these results may not hold for other stocks.",
+  "brief.notesTitle": "About today's coverage",
+  "brief.unreliableLine": "{symbol}: twin fit {fit}, too weak to rank.",
+  "brief.skippedLine": "Not analysed today to stay within the credit cap: {symbols}.",
+  "brief.failedLine": "Could not be analysed today: {symbols}.",
+
+  "watchlist.briefTitle": "Daily brief email",
+  "watchlist.briefDescription":
+    "Receive the market brief after each trading day. On Mondays it also lists the upcoming corporate actions on your watchlist.",
+  "watchlist.briefOn": "Turn on",
+  "watchlist.briefOff": "Turn off",
+  "watchlist.briefStatusOn": "You receive the daily brief.",
+  "watchlist.briefStatusOff": "You do not receive the daily brief.",
+
   // Brand
   "brand.tagline": "Market intelligence for IDX",
   "actions.showMore": "Show all",
@@ -662,6 +758,7 @@ export const id: Record<TranslationKey, string> = {
   "nav.analyse": "Analisis",
   "nav.compare": "Bandingkan",
   "nav.watchlist": "Watchlist",
+  "nav.brief": "Brief",
   "nav.signIn": "Masuk",
   "nav.signOut": "Keluar",
   "nav.skipToContent": "Langsung ke konten",
@@ -1176,6 +1273,102 @@ export const id: Record<TranslationKey, string> = {
     "Kami menerima permintaan untuk mengatur ulang password Anda. Klik tombol di bawah untuk memilih password baru.",
   "email.resetPassword.cta": "Atur ulang password",
   "email.resetPassword.expiry": "Link ini berlaku selama satu jam. Jika Anda tidak meminta ini, abaikan email ini.",
+
+  "email.brief.subject": "Market brief {date}: {count} pergerakan tidak biasa",
+  "email.brief.subjectNone": "Market brief {date}: tidak ada pergerakan tidak biasa",
+  "email.brief.intro":
+    "Dari {covered} saham yang dianalisis hari ini, {signals} bergerak melampaui apa yang dijelaskan twin-nya.",
+  "email.brief.moversTitle": "Pergerakan stock-specific terbesar",
+  "email.brief.moverLine": "{symbol}: {specific} stock specific, z-score {z}. {label}.",
+  "email.brief.disagreementsTitle": "Berita dan harga tidak sejalan",
+  "email.brief.labelLine": "{symbol}: {label}.",
+  "email.brief.smartMoneyTitle": "Posisi smart money",
+  "email.brief.smartMoneyLine": "{symbol}: {label}, conviction {conviction} dari 100.",
+  "email.brief.calendarTitle": "Watchlist Anda, 14 hari ke depan",
+  "email.brief.calendarLine": "{date} {symbol}: {summary}",
+  "email.brief.unreliable":
+    "{count} saham tidak dimasukkan ke peringkat karena twin-nya terlalu lemah untuk diperingkat.",
+  "email.brief.cta": "Buka brief lengkap",
+  "email.brief.footnote":
+    "Anda menerima email ini karena mengaktifkan daily brief. Anda dapat mematikannya di halaman watchlist.",
+
+  "brief.title": "Market brief",
+  "brief.description":
+    "Apa yang bergerak melampaui twin-nya, di mana berita dan harga tidak sejalan, dan apa yang akan datang di watchlist Anda. Disiapkan otomatis setelah setiap hari perdagangan.",
+  "brief.asOf": "Dijalankan {date}",
+  "brief.noRunTitle": "Belum ada brief",
+  "brief.noRunBody":
+    "Brief pertama disiapkan otomatis setelah pasar tutup pada hari perdagangan berikutnya.",
+  "brief.inProgress": "Masih disiapkan: {done} dari {total} saham sudah dianalisis.",
+  "brief.stat.covered": "Saham yang dicakup",
+  "brief.stat.coveredCaption":
+    "Saham di watchlist lebih dulu, lalu daftar default yang singkat. Bukan seluruh pasar.",
+  "brief.stat.signals": "Pergerakan tidak biasa",
+  "brief.stat.signalsCaption": "Melampaui {z} standar deviasi, dengan twin yang cocok.",
+  "brief.stat.disagreements": "Berita vs harga",
+  "brief.stat.disagreementsCaption": "Di mana coverage dan pergerakan harga menunjuk arah berbeda.",
+  "brief.stat.credits": "Credit terpakai",
+  "brief.stat.creditsCaption": "Dari {cap} yang diizinkan untuk satu hari.",
+  "brief.moversTitle": "Pergerakan stock-specific terbesar",
+  "brief.moversDescription":
+    "Diurutkan dari pergerakan yang paling tidak biasa untuk tiap saham, ke arah mana pun.",
+  "brief.moversEmpty": "Tidak ada saham dengan twin yang cukup andal untuk diperingkat hari ini.",
+  "brief.tableNews": "Berita vs harga",
+  "brief.disagreementsTitle": "Berita dan harga tidak sejalan",
+  "brief.disagreementsDescription":
+    "Pergerakan belum dijelaskan oleh coverage, atau coverage justru menunjuk arah sebaliknya.",
+  "brief.disagreementsEmpty":
+    "Tidak ada hari ini. Di mana ada coverage, coverage sejalan dengan pergerakannya.",
+  "brief.smartMoneyTitle": "Posisi smart money",
+  "brief.smartMoneyDescription":
+    "Foreign flow dan institutional flow yang bertentangan dengan harga. Conviction mengukur seberapa kuat pertentangannya, bukan prediksi.",
+  "brief.smartMoneyEmpty": "Tidak ada pertentangan kuat antara flow dan harga hari ini.",
+  "brief.conviction": "Conviction {value} dari 100",
+  "brief.sectorTitle": "Tampilan sektor",
+  "brief.sectorDescription":
+    "Rata-rata pembagian pergerakan, untuk sektor dengan minimal dua saham yang dicakup.",
+  "brief.sectorEmpty": "Terlalu sedikit saham per sektor hari ini untuk dirata-rata.",
+  "brief.sectorSingle": "Hanya satu saham yang dicakup, jadi tidak ada rata-rata sektor: {sectors}.",
+  "brief.tableSector": "Sektor",
+  "brief.tableStocks": "Saham",
+  "brief.tableSignals": "Tidak biasa",
+  "brief.calendarTitle": "Watchlist Anda, {days} hari ke depan",
+  "brief.calendarDescription":
+    "Dividen, stock split, dan RUPS yang akan datang, dalam rupiah jika Anda mencatat posisi.",
+  "brief.calendarEmpty": "Tidak ada jadwal dalam beberapa hari ke depan untuk saham yang Anda pantau.",
+  "brief.calendarNoWatchlist":
+    "Tambahkan saham ke watchlist untuk melihat corporate action yang akan datang di sini.",
+  "brief.calendarNotCovered": "Belum dicakup oleh daily run: {symbols}.",
+  "brief.trackTitle": "Track record",
+  "brief.trackDescription":
+    "Apakah sinyalnya pernah berarti sesuatu? Hasil setiap hari disimpan bersama apa yang dilakukan saham terhadap twin-nya selama {sessions} sesi berikutnya.",
+  "brief.trackInsufficient":
+    "Riwayatnya belum cukup. Baru {count} sinyal yang hasilnya sudah diketahui, dan persentase ditampilkan mulai dari {needed}. Sebelum itu, angka persentase akan terlihat presisi tapi hampir tidak berarti.",
+  "brief.trackOrdinaryCount": "{count} hari biasa sudah diketahui hasilnya.",
+  "brief.trackSignals": "Hari dengan sinyal",
+  "brief.trackOrdinary": "Hari biasa",
+  "brief.trackContinued": "dari seluruh kasus, selisihnya terus berlanjut ke arah yang sama setelahnya.",
+  "brief.trackExcess": "Rata-rata pergerakan lanjutan terhadap twin: {value}",
+  "brief.trackCount": "{count} dengan hasil yang diketahui",
+  "brief.trackBucketThin": "Baru {count}, terlalu sedikit untuk menampilkan persentase.",
+  "brief.trackCaveat1":
+    "Track record menggambarkan hasil aplikasi ini sendiri di masa lalu. Ini bukan prediksi.",
+  "brief.trackCaveat2":
+    "Twin disusun ulang setiap hari, jadi perbandingan berikutnya memakai komposisi peer yang sedikit berbeda.",
+  "brief.trackCaveat3":
+    "Hanya sedikit saham yang dicakup setiap hari, jadi hasil ini belum tentu berlaku untuk saham lain.",
+  "brief.notesTitle": "Tentang cakupan hari ini",
+  "brief.unreliableLine": "{symbol}: twin fit {fit}, terlalu lemah untuk diperingkat.",
+  "brief.skippedLine": "Tidak dianalisis hari ini agar tetap dalam batas credit: {symbols}.",
+  "brief.failedLine": "Tidak dapat dianalisis hari ini: {symbols}.",
+
+  "watchlist.briefTitle": "Email daily brief",
+  "watchlist.briefDescription":
+    "Terima market brief setelah setiap hari perdagangan. Setiap Senin juga berisi corporate action yang akan datang di watchlist Anda.",
+  "watchlist.briefOn": "Aktifkan",
+  "watchlist.briefOff": "Matikan",
+  "watchlist.briefStatusOn": "Anda menerima daily brief.",
+  "watchlist.briefStatusOff": "Anda tidak menerima daily brief.",
 
   "brand.tagline": "Intelijen pasar untuk IDX",
   "actions.showMore": "Tampilkan semua",

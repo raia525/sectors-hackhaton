@@ -66,10 +66,29 @@ These cost real debugging time. Check here before assuming a bug is ours.
 | `src/lib/shadow/` | Twin construction, similarity scoring, attribution |
 | `src/lib/smartmoney/` | Institutional and foreign positioning |
 | `src/lib/analysis/` | Reality check: narrative against price |
+| `src/lib/intelligence/` | Daily run, market brief, track record, calendar |
 | `src/app/` | Next.js App Router pages and route handlers |
 
 `src/lib/**` is pure and dependency-free where possible, which is what makes it
 testable without network or database.
+
+## The daily run
+
+Vercel Cron calls `/api/cron/alerts` (GET, bearer `CRON_SECRET`) after the
+close on weekdays. The route answers at once, works in `after()`, and calls
+itself again while stocks remain, so the day is many short function runs
+rather than one long one. See `src/lib/intelligence/pipeline.ts`.
+
+- One queue item per stock, claimed atomically, so overlapping steps never
+  analyse the same stock twice. A stale claim is retried, then marked failed.
+- Capped by `AUTOMATION_DAILY_CREDIT_CAP`, checked before each stock, and it
+  never draws on the ledger's reserve. Watched stocks are queued first.
+- Each result is stored as a `SignalSnapshot`. Alerts, the brief page and the
+  brief email are built from snapshots and never spend a credit.
+- Later runs fill in what happened after each snapshot. The track record
+  refuses to show a rate below `MIN_SAMPLE` resolved signals.
+- Functions run in `sin1`, next to the Neon database in Singapore. Running
+  them in the default US region made every query cross the Pacific.
 
 ## Conventions
 

@@ -4,6 +4,7 @@ import { WatchlistManager } from "@/components/WatchlistManager";
 import { NotificationList } from "@/components/NotificationList";
 import { Card, CardHeader, Container, InkPanel, PageHeader } from "@/components/ui/primitives";
 import { getTranslator } from "@/lib/i18n/server";
+import { setBriefOptIn } from "./actions";
 
 export const metadata = {
   title: "Watchlist | SHADOW IDX",
@@ -31,7 +32,7 @@ export default async function WatchlistPage() {
     );
   }
 
-  const [items, holdings, notifications] = await Promise.all([
+  const [items, holdings, notifications, preferences] = await Promise.all([
     prisma.watchlistItem.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -42,7 +43,9 @@ export default async function WatchlistPage() {
       orderBy: { createdAt: "desc" },
       take: 25,
     }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { briefOptIn: true } }),
   ]);
+  const briefOptIn = preferences?.briefOptIn ?? false;
 
   const holdingBySymbol = new Map(holdings.map((h) => [h.symbol, h]));
 
@@ -97,6 +100,31 @@ export default async function WatchlistPage() {
           />
         </InkPanel>
       </div>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="max-w-2xl">
+            <h2 className="text-[16px] font-bold text-text">{t("watchlist.briefTitle")}</h2>
+            <p className="mt-1 text-sm text-text-muted">{t("watchlist.briefDescription")}</p>
+            <p className="mt-2 text-xs font-semibold text-text-subtle">
+              {briefOptIn ? t("watchlist.briefStatusOn") : t("watchlist.briefStatusOff")}
+            </p>
+          </div>
+          <form action={setBriefOptIn}>
+            <input type="hidden" name="enabled" value={briefOptIn ? "false" : "true"} />
+            <button
+              type="submit"
+              className={
+                briefOptIn
+                  ? "rounded-full border border-border-strong px-5 py-2.5 text-sm font-bold text-text transition-colors hover:bg-surface-raised"
+                  : "rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-contrast transition-colors hover:bg-accent-hover"
+              }
+            >
+              {briefOptIn ? t("watchlist.briefOff") : t("watchlist.briefOn")}
+            </button>
+          </form>
+        </div>
+      </Card>
     </Container>
   );
 }

@@ -11,6 +11,7 @@ import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 const NAV: { href: string; key: TranslationKey }[] = [
   { href: "/", key: "nav.analyse" },
+  { href: "/brief", key: "nav.brief" },
   { href: "/compare", key: "nav.compare" },
   { href: "/watchlist", key: "nav.watchlist" },
 ];
@@ -49,7 +50,7 @@ export function SiteHeader() {
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`block whitespace-nowrap rounded-full px-5 py-2 text-center text-sm font-semibold transition-colors ${
+                    className={`block whitespace-nowrap rounded-full px-3 py-2 text-center text-sm font-semibold transition-colors md:px-5 ${
                       active
                         ? "bg-[#ea580c] text-white"
                         : "text-text-muted hover:bg-surface-raised hover:text-text"

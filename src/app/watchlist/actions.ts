@@ -133,6 +133,18 @@ export async function updateThreshold(
   return { success: msg("watchlist.action.thresholdUpdated") };
 }
 
+/** Turns the daily brief email on or off for the signed-in user only. */
+export async function setBriefOptIn(formData: FormData): Promise<void> {
+  const userId = await getSessionUserId();
+  if (!userId) return;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { briefOptIn: formData.get("enabled") === "true" },
+  });
+  revalidatePath("/watchlist");
+}
+
 export async function markNotificationsRead(): Promise<void> {
   const userId = await getSessionUserId();
   if (!userId) return;

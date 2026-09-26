@@ -1,13 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
   escapeHtml,
+  renderBriefEmail,
   renderDigestEmail,
   renderOtpEmail,
   renderPasswordResetEmail,
   renderVerificationEmail,
 } from "./email";
 import { msg } from "@/lib/i18n/message";
+import { buildBrief, type BriefRow } from "@/lib/intelligence/brief";
 import type { Alert } from "./rules";
+
+function briefRow(over: Partial<BriefRow> = {}): BriefRow {
+  return {
+    symbol: "BBRI",
+    companyName: "Bank Rakyat Indonesia",
+    sector: "Financials",
+    zScore: 2.6,
+    verdict: "significant",
+    fitQuality: 0.6,
+    constituentCount: 5,
+    totalReturn: 0.05,
+    marketReturn: 0.02,
+    sectorReturn: 0.01,
+    idioReturn: 0.023,
+    realityVerdict: "price_ahead_of_narrative",
+    smartMoneyType: "bullish_divergence",
+    smartMoneyConviction: 70,
+    ...over,
+  };
+}
 
 function alert(over: Partial<Alert> = {}): Alert {
   return {
@@ -187,5 +209,45 @@ describe("renderPasswordResetEmail", () => {
     const rendered = renderPasswordResetEmail("en", null, "https://example.com/x");
     expect(rendered.html).toMatch(/not investment advice/);
     expect(rendered.text).toMatch(/not investment advice/);
+  });
+});
+
+describe("renderBriefEmail", () => {
+  const input = (rows: BriefRow[]) => ({
+    runDate: "2026-09-25",
+    brief: buildBrief(rows),
+    calendar: [],
+    briefUrl: "https://example.com/brief",
+  });
+
+  it("states how many stocks were covered, so it never reads as the whole market", () => {
+    const rendered = renderBriefEmail("en", null, input([briefRow(), briefRow({ symbol: "BBCA", zScore: 0.4 })]));
+    expect(rendered.text).toMatch(/Across the 2 stocks analysed today, 1 moved/);
+    expect(rendered.subject).toBe("Market brief 2026-09-25: 1 unusual moves");
+  });
+
+  it("lists movers, disagreements and smart money, and links to the page", () => {
+    const rendered = renderBriefEmail("en", "Rai", input([briefRow()]));
+    expect(rendered.text).toMatch(/BBRI: \+2\.30% stock specific, z-score \+2\.60/);
+    expect(rendered.text).toMatch(/Price ahead of the story/);
+    expect(rendered.text).toMatch(/conviction 70 of 100/);
+    expect(rendered.html).toContain("https://example.com/brief");
+  });
+
+  it("uses a no-moves subject when nothing crossed the threshold", () => {
+    const rendered = renderBriefEmail("en", null, input([briefRow({ zScore: 0.5 })]));
+    expect(rendered.subject).toBe("Market brief 2026-09-25: no unusual moves");
+  });
+
+  it("escapes stock data rather than trusting it as markup", () => {
+    const rendered = renderBriefEmail("en", null, input([briefRow({ symbol: "<b>X</b>" })]));
+    expect(rendered.html).not.toContain("<b>X</b>");
+    expect(rendered.html).toContain("&lt;b&gt;X&lt;/b&gt;");
+  });
+
+  it("renders in Indonesian", () => {
+    const rendered = renderBriefEmail("id", null, input([briefRow()]));
+    expect(rendered.text).toMatch(/Dari 1 saham yang dianalisis hari ini/);
+    expect(rendered.text).toMatch(/bukan saran investasi/);
   });
 });
