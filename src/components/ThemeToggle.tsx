@@ -42,7 +42,8 @@ function setTheme(next: Theme): void {
   }
 }
 
-export function ThemeToggle() {
+/** `compact` shrinks the button for the header's minimized state. */
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const isDark = theme === "dark";
 
@@ -52,7 +53,9 @@ export function ThemeToggle() {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-pressed={isDark}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-[var(--shadow-card)] transition-colors hover:border-border-strong hover:text-text"
+      className={`flex items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-[var(--shadow-card)] transition-colors hover:border-border-strong hover:text-text ${
+        compact ? "h-8 w-8" : "h-10 w-10"
+      }`}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
     </button>

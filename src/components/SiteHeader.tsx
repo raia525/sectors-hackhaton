@@ -88,6 +88,12 @@ export function SiteHeader() {
     </ul>
   );
 
+  // Minimized: only the current page's own link, not the full menu. It is
+  // still a link to that same page, not a label, so it stays clickable and
+  // keeps its filled, active look; the other pages are a scroll-to-top or a
+  // click into the mobile panel away.
+  const currentPage = NAV.find((item) => isActive(item.href)) ?? NAV[0];
+
   return (
     <header className="pointer-events-none sticky top-0 z-30 flex justify-center px-4 pt-4">
       <div
@@ -101,25 +107,39 @@ export function SiteHeader() {
           }`}
         >
           <Link href="/" aria-label="SHADOW IDX" className="flex shrink-0 items-center pl-1.5">
-            <LogoMark size={minimized ? 26 : 30} />
+            <LogoMark size={minimized ? 22 : 30} />
           </Link>
 
-          <nav aria-label="Main" className="hidden flex-1 md:block">
-            {links("inline")}
+          <nav aria-label="Main" className="hidden md:block md:flex-1">
+            {minimized ? (
+              // Only the page currently open, not the whole menu: expand the
+              // header (scroll to top) to reach the others.
+              <Link
+                href={currentPage.href}
+                aria-current="page"
+                className="inline-block whitespace-nowrap rounded-full bg-accent-bright px-4 py-1.5 text-sm font-semibold text-white"
+              >
+                {t(currentPage.key)}
+              </Link>
+            ) : (
+              links("inline")
+            )}
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 pr-0.5">
-            <LanguageToggle />
-            <ThemeToggle />
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 pr-0.5">
+            <LanguageToggle compact={minimized} />
+            <ThemeToggle compact={minimized} />
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
               aria-expanded={menuOpen}
               aria-controls="mobile-nav-panel"
               aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-raised hover:text-text md:hidden"
+              className={`flex items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-raised hover:text-text md:hidden ${
+                minimized ? "h-8 w-8" : "h-10 w-10"
+              }`}
             >
-              {menuOpen ? <IconClose size={18} /> : <IconMenu size={18} />}
+              {menuOpen ? <IconClose size={16} /> : <IconMenu size={16} />}
             </button>
           </div>
         </div>
