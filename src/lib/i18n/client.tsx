@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { translate, type FlatParams } from "./translate";
+import { translate, type FlatParams, type Overrides } from "./translate";
 import { renderMessage, type Message } from "./message";
 import { LOCALE_COOKIE, type Locale } from "./locales";
 import type { TranslationKey } from "./dictionary";
@@ -34,9 +34,12 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({
   initialLocale,
+  overrides,
   children,
 }: {
   initialLocale: Locale;
+  /** Admin edits to landing copy, for both languages so a switch needs no refetch. */
+  overrides: Record<Locale, Overrides>;
   children: React.ReactNode;
 }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
@@ -58,8 +61,8 @@ export function I18nProvider({
   );
 
   const t = useCallback(
-    (key: TranslationKey, params?: FlatParams) => translate(locale, key, params),
-    [locale],
+    (key: TranslationKey, params?: FlatParams) => translate(locale, key, params, overrides[locale]),
+    [locale, overrides],
   );
 
   const tm = useCallback((message: Message) => renderMessage(message, t), [t]);

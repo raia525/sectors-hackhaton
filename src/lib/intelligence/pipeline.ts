@@ -168,10 +168,20 @@ async function queueOrder(): Promise<string[]> {
     orderBy: { _count: { symbol: "desc" } },
   });
 
-  const universe = getEnv()
-    .MARKET_UNIVERSE.split(",")
-    .map((s) => normalizeSymbol(s))
-    .filter((s): s is string => s !== null);
+  // The admin-managed list wins when it has any active stock; otherwise the
+  // MARKET_UNIVERSE environment variable, so a fresh deploy still has one.
+  const managed = await prisma.universeStock.findMany({
+    where: { isActive: true },
+    orderBy: { position: "asc" },
+    select: { symbol: true },
+  });
+  const universe =
+    managed.length > 0
+      ? managed.map((m) => m.symbol)
+      : getEnv()
+          .MARKET_UNIVERSE.split(",")
+          .map((s) => normalizeSymbol(s))
+          .filter((s): s is string => s !== null);
 
   return [...new Set([...watched.map((w) => w.symbol), ...universe])];
 }

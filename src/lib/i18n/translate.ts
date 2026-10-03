@@ -17,12 +17,16 @@ const DICTIONARIES: Record<Locale, Record<TranslationKey, string>> = { en, id };
 
 export type FlatParams = Record<string, string | number>;
 
+/** Admin edits for one language, keyed by translation key (see src/lib/admin/content.ts). */
+export type Overrides = Partial<Record<string, string>>;
+
 export function translate(
   locale: Locale,
   key: TranslationKey,
   params?: FlatParams,
+  overrides?: Overrides,
 ): string {
-  const template = DICTIONARIES[locale][key] ?? DICTIONARIES.en[key] ?? key;
+  const template = overrides?.[key] ?? DICTIONARIES[locale][key] ?? DICTIONARIES.en[key] ?? key;
   if (!params) return template;
 
   let result = template;

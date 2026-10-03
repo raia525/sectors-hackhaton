@@ -8,6 +8,9 @@ import { SkipLink } from "@/components/SkipLink";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getLocale } from "@/lib/i18n/server";
 import { getCurrentUser } from "@/lib/auth";
+import { getSiteSettings } from "@/lib/brand/settings";
+import { BrandProvider } from "@/components/ui/Logo";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 import "./globals.css";
 
 /**
@@ -21,14 +24,25 @@ const jakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: "SHADOW IDX",
-  description:
-    "Every stock has a shadow. SHADOW IDX builds a synthetic twin of an Indonesian stock from comparable companies, then shows what part of its move is genuinely its own.",
-};
+/** The favicon is whichever one an admin has activated, else the built-in mark. */
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  return {
+    title: "SHADOW IDX",
+    description:
+      "Every stock has a shadow. SHADOW IDX builds a synthetic twin of an Indonesian stock from comparable companies, then shows what part of its move is genuinely its own.",
+    icons: settings.faviconUrl
+      ? { icon: [{ url: settings.faviconUrl, type: settings.faviconType ?? undefined }] }
+      : { icon: [{ url: "/brand/icon.svg", type: "image/svg+xml" }] },
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [locale, user] = await Promise.all([getLocale(), getCurrentUser()]);
+  const [locale, user, settings] = await Promise.all([
+    getLocale(),
+    getCurrentUser(),
+    getSiteSettings(),
+  ]);
 
   return (
     <html
@@ -44,6 +58,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <ThemeScript />
+        {/* The admin-chosen palette, validated as plain hex colours before it
+            is rendered (src/lib/admin/palette.ts), so nothing but colours can
+            reach this tag. */}
+        {settings.paletteCss ? <style id="brand-palette">{settings.paletteCss}</style> : null}
       </head>
       <body
         className="flex min-h-full flex-col bg-bg"
@@ -51,8 +69,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         // attributes into <body> before hydration; same rationale as above.
         suppressHydrationWarning
       >
-        <I18nProvider initialLocale={locale}>
+        <I18nProvider initialLocale={locale} overrides={settings.overrides}>
+          <BrandProvider logoUrl={settings.logoUrl}>
           <SkipLink />
+          <AnnouncementBar announcements={settings.announcements} signedIn={user !== null} />
           {/*
             The app's menu (Analyse, Brief, Compare, Watchlist) only makes
             sense once there is an account behind it: every one of those
@@ -62,11 +82,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             register instead of a menu of links that would all bounce them
             straight back here.
           */}
-          {user ? <SiteHeader /> : <GuestHeader />}
+          {user ? (
+            <SiteHeader
+              account={{ name: user.name, email: user.email, isAdmin: user.role === "ADMIN" }}
+            />
+          ) : (
+            <GuestHeader />
+          )}
           <main id="main" className="flex-1">
             {children}
           </main>
           <SiteFooter />
+          </BrandProvider>
         </I18nProvider>
       </body>
     </html>

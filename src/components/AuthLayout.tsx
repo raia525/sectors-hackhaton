@@ -100,8 +100,7 @@ function Scene({
             colour, not a gradient, like every other orange surface. */}
         <path
           d="M0 300 L70 280 L140 292 L210 250 L280 236 L350 190 L420 172 L490 128 L560 100 L640 70 L640 214 L560 224 L490 234 L420 240 L350 236 L280 250 L210 254 L140 270 L70 266 L0 286 Z"
-          fill="#ff6a1a"
-          fillOpacity="0.13"
+          style={{ fill: "var(--accent-bright)", fillOpacity: 0.13 }}
         />
         <path
           d="M0 286 L70 266 L140 270 L210 254 L280 250 L350 236 L420 240 L490 234 L560 224 L640 214"
@@ -113,18 +112,18 @@ function Scene({
         <path
           d="M0 300 L70 280 L140 292 L210 250 L280 236 L350 190 L420 172 L490 128 L560 100 L640 70"
           fill="none"
-          stroke="#ff6a1a"
+          style={{ stroke: "var(--accent-bright)" }}
           strokeWidth="4"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <circle cx="560" cy="100" r="6" fill="#ff6a1a" />
+        <circle cx="560" cy="100" r="6" style={{ fill: "var(--accent-bright)" }} />
       </svg>
 
       <div className="absolute right-5 top-5 flex items-center gap-2 lg:right-8 lg:top-8">
         <span className="hidden items-center gap-3 rounded-full bg-surface-raised px-3 py-1 text-[11px] font-semibold text-text-muted sm:flex">
           <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 rounded bg-[#ff6a1a]" />
+            <span className="h-0.5 w-4 rounded bg-accent-bright" />
             {labels.stock}
           </span>
           <span className="flex items-center gap-1.5">
@@ -146,7 +145,7 @@ function Scene({
       <div className="absolute bottom-6 right-5 text-right lg:bottom-12 lg:right-12 lg:max-w-[48%]">
         <p className="text-[26px] font-extrabold uppercase leading-[1.02] tracking-wide text-text lg:text-[40px]">
           <span className="block">{labels.headlineLead}</span>
-          <span className="block text-[#ff6a1a]">{labels.headlineAccent}</span>
+          <span className="block text-accent-bright">{labels.headlineAccent}</span>
         </p>
         <p className="mt-1.5 text-[12px] font-bold uppercase tracking-[0.18em] text-text-muted lg:text-[15px]">
           {labels.tagline}

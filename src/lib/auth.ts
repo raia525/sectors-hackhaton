@@ -8,6 +8,8 @@ import {
 } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 import {
@@ -95,15 +97,24 @@ export async function destroySession(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
 }
 
-/** Returns the signed-in user's id, or null. Verifies signature and expiry only. */
+/**
+ * Returns the signed-in user's id, or null. Goes through getCurrentUser, not
+ * just the cookie signature, so a session ended by a password change or by
+ * "sign out everywhere" stops working for server actions too, and the sign
+ * in page no longer bounces a revoked cookie to /watchlist. getCurrentUser is
+ * cached per request, so this adds no query where the layout already ran it.
+ */
 export async function getSessionUserId(): Promise<string | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return parseSessionToken(token);
+  return (await getCurrentUser())?.id ?? null;
 }
 
 export { parseSessionToken };
 
-export async function getCurrentUser() {
+/**
+ * The signed-in user, or null. Wrapped in React cache() so the layout, the
+ * page and any server component share one lookup per request.
+ */
+export const getCurrentUser = cache(async () => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const userId = parseSessionToken(token);
   if (!userId || !token) return null;
@@ -113,22 +124,46 @@ export async function getCurrentUser() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, passwordChangedAt: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      passwordChangedAt: true,
+      sessionsRevokedAt: true,
+    },
   });
   if (!user) return null;
 
-  // A session issued before the account's most recent password reset is
-  // stale: the reset is meant to sign out every other browser, and this is
-  // what enforces that without a server-side session table.
-  if (
-    user.passwordChangedAt &&
-    Number.isFinite(issuedAt) &&
-    issuedAt < user.passwordChangedAt.getTime()
-  ) {
-    return null;
-  }
+  // A session issued before the account's latest password change or "sign
+  // out everywhere" is stale. This is what signs every other browser out
+  // without a server-side session table.
+  if (Number.isFinite(issuedAt) && issuedAt < revokedBefore(user)) return null;
 
-  return { id: user.id, email: user.email, name: user.name };
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+});
+
+/** The later of the two moments that invalidate older sessions, in ms. */
+function revokedBefore(user: {
+  passwordChangedAt: Date | null;
+  sessionsRevokedAt: Date | null;
+}): number {
+  return Math.max(
+    user.passwordChangedAt?.getTime() ?? 0,
+    user.sessionsRevokedAt?.getTime() ?? 0,
+  );
+}
+
+/**
+ * The signed-in admin, or a 404. Used by the admin layout and, separately,
+ * by every admin server action: a server action is a public endpoint, so
+ * the layout having checked is not enough. A 404 rather than a redirect, so
+ * the panel's existence is not revealed to anyone without access.
+ */
+export async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "ADMIN") notFound();
+  return user;
 }
 
 /** A random token for an email verification or password reset link. */

@@ -67,6 +67,8 @@ These cost real debugging time. Check here before assuming a bug is ours.
 | `src/lib/smartmoney/` | Institutional and foreign positioning |
 | `src/lib/analysis/` | Reality check: narrative against price |
 | `src/lib/intelligence/` | Daily run, market brief, track record, calendar |
+| `src/lib/admin/` | Pure checks behind the admin panel: content overrides, palettes, uploads, schedules |
+| `src/lib/brand/` | Per-request site settings: palette, logo, favicon, text overrides, announcements |
 | `src/app/` | Next.js App Router pages and route handlers |
 
 `src/lib/**` is pure and dependency-free where possible, which is what makes it
@@ -89,6 +91,36 @@ rather than one long one. See `src/lib/intelligence/pipeline.ts`.
   refuses to show a rate below `MIN_SAMPLE` resolved signals.
 - Functions run in `sin1`, next to the Neon database in Singapore. Running
   them in the default US region made every query cross the Pacific.
+
+## Admin, roles and branding
+
+`User.role` is `USER` or `ADMIN`. The panel lives under `/admin`.
+
+- `requireAdmin()` answers 404, not 403, so the panel's existence is not
+  revealed. Every admin server action calls it again, because an action is
+  a public endpoint, and writes an `AdminAuditLog` row.
+- Grant the role with `npm run admin:grant -- <email>` (or the same script
+  under `dotenv -e .env.production.local` for production). The account must
+  exist first.
+- A session is stale if issued before `passwordChangedAt` or
+  `sessionsRevokedAt`. `getSessionUserId` goes through `getCurrentUser`
+  so this applies to server actions too. The proxy checks only the cookie
+  signature, by design.
+- Palette, logo, favicon, landing text overrides and announcements are read
+  once per request by `getSiteSettings()`, which falls back to the built-in
+  values on any error. Palette hexes are validated before they reach the
+  `<style>` tag. Uploads are typed by their bytes, never the client's claim,
+  and SVGs with script or external references are refused and served with a
+  sandbox CSP anyway.
+- Brand colours in components must come from the tokens
+  (`var(--accent-bright)` and friends), never a hard-coded hex, or a palette
+  change will miss them. Emails are the exception: mail clients cannot read
+  CSS variables, so they keep the built-in orange.
+- The daily run's stock list is the active `UniverseStock` rows in order,
+  or `MARKET_UNIVERSE` when there are none.
+- `ActionForm` submits from `onSubmit` rather than the `action` prop, so a
+  refused form keeps what was typed. React resets `action` forms even on
+  an error.
 
 ## Conventions
 

@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/lib/i18n/client";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
-import { LogoMark } from "./ui/Logo";
+import { BrandMark } from "./ui/Logo";
+import { AccountMenu, type AccountSummary } from "./AccountMenu";
 import { IconChevronRight, IconClose, IconMenu } from "./ui/icons";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 
@@ -42,7 +43,7 @@ type Mode = "static" | "expanded" | "minimized";
  * Returning to the top of the page resets a minimized header, so the next
  * time it floats it starts expanded again.
  */
-export function SiteHeader() {
+export function SiteHeader({ account }: { account: AccountSummary }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -104,7 +105,7 @@ export function SiteHeader() {
         {/* Logo: static bar only. */}
         <Collapse hidden={floating} className="shrink-0">
           <Link href="/" aria-label="SHADOW IDX" className="flex items-center pr-2">
-            <LogoMark size={32} />
+            <BrandMark size={32} />
           </Link>
         </Collapse>
 
@@ -144,6 +145,12 @@ export function SiteHeader() {
         <div className={`nav-anim flex shrink-0 items-center ${floating ? "gap-0.5" : "ml-auto gap-2"}`}>
           <LanguageToggle floating={floating} collapsed={mode === "minimized"} />
           <ThemeToggle compact={floating} />
+          {/* Hidden when minimized, which keeps only the page, language and theme. */}
+          {mode === "minimized" ? null : (
+            <span className={floating ? "hidden sm:contents" : "contents"}>
+              <AccountMenu account={account} compact={floating} />
+            </span>
+          )}
 
           {/* Mobile menu: static bar only, where the links do not fit. */}
           {!floating ? (

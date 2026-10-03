@@ -5,7 +5,7 @@ import { getTranslator } from "@/lib/i18n/server";
 import { MAX_PEER_CANDIDATES } from "@/lib/analysis/service";
 import { LanguageToggle } from "../LanguageToggle";
 import { ThemeToggle } from "../ThemeToggle";
-import { Logo, LogoMark } from "../ui/Logo";
+import { Logo, BrandMark } from "../ui/Logo";
 import { Container, IconBadge, InkPanel } from "../ui/primitives";
 import {
   IconArrowUpRight,
@@ -75,7 +75,7 @@ export async function Landing() {
           >
             <Link href="/" aria-label="SHADOW IDX" className="ink shrink-0 rounded-full bg-transparent">
               {/* The wordmark does not fit beside the toggles and the button on a phone. */}
-              <span className="sm:hidden"><LogoMark size={36} /></span>
+              <span className="sm:hidden"><BrandMark size={36} /></span>
               <span className="hidden sm:block"><Logo /></span>
             </Link>
             <ul className="hidden items-center gap-9 text-[12px] font-semibold uppercase tracking-[0.18em] text-white/80 md:flex">
@@ -98,7 +98,7 @@ export async function Landing() {
           <div className="px-5 pb-10 pt-12 text-center lg:pt-16" data-reveal="up" data-state="in">
             <h1 className="rise mx-auto max-w-4xl text-[40px] font-extrabold leading-[1.04] tracking-tight text-balance text-white sm:text-[56px] lg:text-[72px]" style={delay(60)}>
               <span className="block">{t("landing.titleLead")}</span>
-              <span className="block text-[#ffb27a]">{t("landing.titleAccent")}</span>
+              <span className="block text-[color-mix(in_srgb,var(--accent-bright)_55%,white)]">{t("landing.titleAccent")}</span>
             </h1>
             <p className="rise mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-white/80" style={delay(160)}>
               {t("home.description")}

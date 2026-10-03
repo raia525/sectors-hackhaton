@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { WatchlistManager } from "@/components/WatchlistManager";
@@ -15,7 +16,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * Reached only with a valid session: middleware (src/middleware.ts) redirects
+ * Reached only with a valid session: the proxy (src/proxy.ts) redirects
  * a signed-out visitor to /signin before this page ever renders. getCurrentUser
  * is still called and still checked, since middleware only verifies the
  * cookie's signature and expiry, not the database-backed passwordChangedAt
@@ -24,13 +25,9 @@ export const dynamic = "force-dynamic";
 export default async function WatchlistPage() {
   const [user, { t }] = await Promise.all([getCurrentUser(), getTranslator()]);
 
-  if (!user) {
-    return (
-      <Container className="space-y-8 py-8 lg:py-10">
-        <PageHeader title={t("watchlist.title")} description={t("auth.gate.body")} />
-      </Container>
-    );
-  }
+  // A session ended by a password change or "sign out everywhere" still
+  // passes the proxy's signature check; send it to sign in again.
+  if (!user) redirect("/signin?next=/watchlist");
 
   const [items, holdings, notifications, preferences] = await Promise.all([
     prisma.watchlistItem.findMany({

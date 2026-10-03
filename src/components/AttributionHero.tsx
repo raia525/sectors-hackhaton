@@ -90,7 +90,7 @@ export function AttributionHero({
         </dl>
         <Link
           href={trackHref}
-          className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[#c2410c] shadow-sm transition-transform hover:-translate-y-0.5"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[color-mix(in_srgb,var(--accent-bright)_72%,black)] shadow-sm transition-transform hover:-translate-y-0.5"
         >
           {t("analysis.trackCta")}
           <IconArrowRight size={16} />

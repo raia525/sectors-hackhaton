@@ -85,9 +85,9 @@ function TwinBars({ title }: { title: string }) {
       <div className="mt-3 space-y-2">
         {[92, 70, 52, 34].map((w, i) => (
           <div key={w} className="flex items-center gap-1.5">
-            <span className={`h-4 w-4 shrink-0 rounded-full ${i === 0 ? "bg-[#ff6a1a]" : "bg-[#ececf1]"}`} />
+            <span className={`h-4 w-4 shrink-0 rounded-full ${i === 0 ? "bg-accent-bright" : "bg-[#ececf1]"}`} />
             <span className="h-1.5 flex-1 rounded-full bg-[#ececf1]">
-              <span className="block h-full rounded-full bg-[#ff6a1a]" style={{ width: `${w}%` }} />
+              <span className="block h-full rounded-full bg-accent-bright" style={{ width: `${w}%` }} />
             </span>
           </div>
         ))}
@@ -101,13 +101,13 @@ function ChartCard({ title, stock, twin }: { title: string; stock: string; twin:
     <div>
       <p className="text-[10px] font-bold leading-tight">{title}</p>
       <svg viewBox="0 0 140 70" className="mt-2 h-auto w-full">
-        <path d="M0 58 L20 52 L40 55 L60 42 L80 38 L100 24 L120 18 L140 8 L140 40 L120 42 L100 45 L80 47 L60 48 L40 52 L20 50 L0 55 Z" fill="#ff6a1a" fillOpacity="0.16" />
+        <path d="M0 58 L20 52 L40 55 L60 42 L80 38 L100 24 L120 18 L140 8 L140 40 L120 42 L100 45 L80 47 L60 48 L40 52 L20 50 L0 55 Z" style={{ fill: "var(--accent-bright)", fillOpacity: 0.16 }} />
         <path d="M0 55 L20 50 L40 52 L60 48 L80 47 L100 45 L120 42 L140 40" fill="none" stroke="#9c9ca8" strokeWidth="1.6" strokeDasharray="4 3" />
-        <path d="M0 58 L20 52 L40 55 L60 42 L80 38 L100 24 L120 18 L140 8" fill="none" stroke="#ff6a1a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M0 58 L20 52 L40 55 L60 42 L80 38 L100 24 L120 18 L140 8" fill="none" style={{ stroke: "var(--accent-bright)" }} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <div className="mt-1.5 flex gap-2.5 text-[9px] font-semibold text-[#62626d]">
         <span className="flex items-center gap-1">
-          <span className="h-0.5 w-3 rounded bg-[#ff6a1a]" />
+          <span className="h-0.5 w-3 rounded bg-accent-bright" />
           {stock}
         </span>
         <span className="flex items-center gap-1">
@@ -122,7 +122,7 @@ function ChartCard({ title, stock, twin }: { title: string; stock: string; twin:
 function Question({ text }: { text: string }) {
   return (
     <p className="text-[13px] font-bold leading-snug text-text">
-      <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#ff6a1a] align-middle" />
+      <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent-bright align-middle" />
       {text}
     </p>
   );
@@ -154,7 +154,7 @@ function SignalCard({
   return (
     <div>
       <p className="text-[10px] font-bold leading-tight">{label}</p>
-      <span className="mt-2.5 inline-block rounded-full bg-[#fff0e6] px-2 py-1 text-[9px] font-bold leading-tight text-[#c2410c]">
+      <span className="mt-2.5 inline-block rounded-full bg-[color-mix(in_srgb,var(--accent-bright)_14%,white)] px-2 py-1 text-[9px] font-bold leading-tight text-[color-mix(in_srgb,var(--accent-bright)_72%,black)]">
         {badge}
       </span>
       {compact ? null : (
@@ -162,7 +162,7 @@ function SignalCard({
           {bars ? (
             <div className="flex h-8 items-end gap-1">
               {[30, 46, 38, 62, 54, 80, 72].map((h, i) => (
-                <span key={i} className="flex-1 rounded-sm bg-[#ff6a1a]" style={{ height: `${h}%`, opacity: 0.35 + i * 0.09 }} />
+                <span key={i} className="flex-1 rounded-sm bg-accent-bright" style={{ height: `${h}%`, opacity: 0.35 + i * 0.09 }} />
               ))}
             </div>
           ) : (

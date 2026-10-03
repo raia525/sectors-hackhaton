@@ -84,3 +84,15 @@ export function buildSessionToken(
   const payload = `${userId}.${issuedAt}.${expires}`;
   return { token: `${payload}.${sign(payload)}`, maxAgeSeconds };
 }
+
+/**
+ * Whether a session was issued as "remember me", read from its own signed
+ * lifetime. Used to re-issue a session after a password change with the
+ * same lifetime the viewer originally chose.
+ */
+export function sessionWasRemembered(token: string | undefined): boolean {
+  if (!parseSessionToken(token) || !token) return false;
+  const [, issuedRaw, expiresRaw] = token.split(".");
+  const lifetimeMs = Number(expiresRaw) - Number(issuedRaw);
+  return lifetimeMs > (SHORT_SESSION_HOURS + 1) * 60 * 60 * 1000;
+}

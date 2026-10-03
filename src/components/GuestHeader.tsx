@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/client";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
-import { Logo, LogoMark } from "./ui/Logo";
+import { Logo, BrandMark } from "./ui/Logo";
 import { Container } from "./ui/primitives";
 
 /**
@@ -31,7 +31,7 @@ export function GuestHeader() {
           {/* On a phone the wordmark does not fit beside both toggles and
               both buttons, so the mark stands in for it. */}
           <span className="sm:hidden">
-            <LogoMark size={36} />
+            <BrandMark size={36} />
           </span>
           <span className="hidden sm:block">
             <Logo tagline={t("brand.tagline")} />

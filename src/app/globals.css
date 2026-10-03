@@ -167,7 +167,7 @@
     --text-subtle: rgba(255, 255, 255, 0.66);
     --accent: #ffffff;
     --accent-soft: rgba(255, 255, 255, 0.18);
-    --accent-contrast: #c2410c;
+    --accent-contrast: color-mix(in srgb, var(--accent-bright) 72%, black);
     background-color: var(--accent-bright);
     color: #ffffff;
   }

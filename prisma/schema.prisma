@@ -15,14 +15,14 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  name              String?
   /// Interface language, used for scheduled notifications sent with no
   /// active browser session to read a cookie from. Kept in sync with the
   /// viewer's cookie choice on each authenticated request; "en" or "id".
-  locale       String   @default("en")
+  locale            String    @default("en")
   /// Null until the sign up verification link is clicked. Sign in is
   /// refused while this is null, so an account cannot be used with an email
   /// address its holder does not control.
@@ -33,8 +33,14 @@ model User {
   passwordChangedAt DateTime?
   /// Opted in to the daily market brief email. Off by default: a daily email
   /// nobody asked for is the fastest way to train people to ignore alerts.
-  briefOptIn   Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  briefOptIn        Boolean   @default(false)
+  /// ADMIN opens the admin panel. Granted by another admin, by the
+  /// migration that created the column, or by `npm run admin:grant`.
+  role              Role      @default(USER)
+  /// "Sign out everywhere": a session issued before this is rejected, the
+  /// same mechanism as passwordChangedAt but without changing the password.
+  sessionsRevokedAt DateTime?
+  createdAt         DateTime  @default(now())
 
   watchlistItems WatchlistItem[]
   holdings       Holding[]
@@ -43,6 +49,11 @@ model User {
   loginOtps      LoginOtp[]
 
   @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 enum TokenPurpose {
@@ -102,8 +113,8 @@ model WatchlistItem {
   notifyOnSmartMoney      Boolean @default(true)
 
   /// Guards against re-sending the same alert on every scheduled run.
-  lastNotifiedAt   DateTime?
-  lastNotifiedZ    Float?
+  lastNotifiedAt DateTime?
+  lastNotifiedZ  Float?
 
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -166,12 +177,12 @@ model Notification {
 /// Keyed by full request URL. Survives restarts and is shared across instances,
 /// which is what keeps repeated demo runs inside the credit budget.
 model ApiCache {
-  key       String   @id
-  payload   Json
+  key        String   @id
+  payload    Json
   /// Credits the original call cost, for reporting what caching saved.
-  creditCost Int     @default(1)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  creditCost Int      @default(1)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 
   @@index([expiresAt])
   @@map("api_cache")
@@ -258,30 +269,30 @@ model RunItem {
 /// show whether the signal has meant anything, instead of asserting that it
 /// does.
 model SignalSnapshot {
-  id               String  @id @default(cuid())
-  symbol           String
-  runDate          String
+  id                   String  @id @default(cuid())
+  symbol               String
+  runDate              String
   /// Last trading session in the analysed data.
-  asOf             String
-  companyName      String
-  sector           String?
-  zScore           Float
-  verdict          String
-  fitQuality       Float
-  constituentCount Int
-  totalReturn      Float
-  marketReturn     Float
-  sectorReturn     Float
-  idioReturn       Float
-  realityVerdict   String
-  smartMoneyType   String?
+  asOf                 String
+  companyName          String
+  sector               String?
+  zScore               Float
+  verdict              String
+  fitQuality           Float
+  constituentCount     Int
+  totalReturn          Float
+  marketReturn         Float
+  sectorReturn         Float
+  idioReturn           Float
+  realityVerdict       String
+  smartMoneyType       String?
   smartMoneyConviction Float?
   /// The full shadow, reality check and smart money results, so alerts and
   /// the brief are built from exactly what was analysed, with no re-fetch.
-  analysis         Json
+  analysis             Json
   /// Raw corporate actions, so each user's rupiah effect can be computed
   /// from their own holding later without spending another credit.
-  corporateActions Json?
+  corporateActions     Json?
 
   /// Filled in by a later run, once enough sessions have passed.
   forwardSessions    Int?
@@ -311,4 +322,118 @@ model CompanyDirectoryEntry {
 
   @@index([companyName])
   @@map("company_directory")
+}
+
+// Admin-managed site settings. Each table is small and read once per
+// request (see src/lib/brand/settings.ts), so plain rows beat a key-value
+// blob: every field is typed and validated by Prisma as well as by Zod.
+
+/// A colour palette. The built-in palette lives in globals.css and applies
+/// whenever no row is active, so it can never be deleted by accident.
+model BrandPalette {
+  id                String   @id @default(cuid())
+  name              String
+  isActive          Boolean  @default(false)
+  lightAccent       String
+  lightAccentHover  String
+  lightAccentBright String
+  lightAccentSoft   String
+  darkAccent        String
+  darkAccentHover   String
+  darkAccentBright  String
+  darkAccentSoft    String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("brand_palettes")
+}
+
+enum BrandAssetKind {
+  LOGO
+  FAVICON
+}
+
+/// An uploaded logo or favicon. Stored in Postgres because the host has no
+/// persistent filesystem; uploads are capped at 512 KB, so this stays small.
+model BrandAsset {
+  id        String         @id @default(cuid())
+  kind      BrandAssetKind
+  name      String
+  mimeType  String
+  data      Bytes
+  size      Int
+  isActive  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+
+  @@index([kind, isActive])
+  @@map("brand_assets")
+}
+
+/// An admin edit to one landing page string, in one language. Deleting the
+/// row restores the dictionary default.
+model ContentOverride {
+  id        String   @id @default(cuid())
+  key       String
+  locale    String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, locale])
+  @@map("content_overrides")
+}
+
+enum AnnouncementTone {
+  INFO
+  WARNING
+  SUCCESS
+}
+
+enum AnnouncementAudience {
+  ALL
+  SIGNED_IN
+  GUESTS
+}
+
+model Announcement {
+  id          String               @id @default(cuid())
+  messageEn   String
+  messageId   String
+  tone        AnnouncementTone     @default(INFO)
+  audience    AnnouncementAudience @default(ALL)
+  linkUrl     String?
+  linkLabelEn String?
+  linkLabelId String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("announcements")
+}
+
+/// The default stock list for the daily run. When any row is active it
+/// replaces the MARKET_UNIVERSE environment variable.
+model UniverseStock {
+  symbol    String   @id
+  position  Int
+  isActive  Boolean  @default(true)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("universe_stocks")
+}
+
+/// Who changed what in the admin panel.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  action     String
+  target     String
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("admin_audit_log")
 }
