@@ -376,6 +376,16 @@
     animation: bob 6s ease-in-out infinite;
   }
 
+  /* Inside the motion-allowed block on purpose: the global reduced-motion
+     rule shortens animations to a near-zero duration, which on an infinite
+     loop would flicker instead of stopping. Here it simply never runs. */
+  .marquee {
+    animation: marquee 48s linear infinite;
+  }
+  .marquee:hover {
+    animation-play-state: paused;
+  }
+
   .ping-ring {
     transform-box: fill-box;
     transform-origin: center;
@@ -403,6 +413,12 @@
   from {
     opacity: 0;
     translate: 0 24px;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
   }
 }
 

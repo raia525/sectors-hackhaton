@@ -62,10 +62,12 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Every path except: Next internals, static files, and API routes,
-     * which authenticate themselves rather than relying on this cookie
-     * check (the cron endpoints use a bearer secret, see cronAuth.ts).
+     * Every path except: Next internals, API routes (which authenticate
+     * themselves, see cronAuth.ts), and files served from public/ by
+     * extension. Those are assets, not pages: gating them sent a signed-out
+     * visitor's landing page photos to /signin, and Next's image optimizer
+     * then received an HTML page where it expected an image.
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
+    "/((?!api|_next/static|_next/image|.*\\.(?:ico|svg|png|jpg|jpeg|gif|webp|avif|txt|xml)$).*)",
   ],
 };

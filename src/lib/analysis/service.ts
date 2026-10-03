@@ -39,7 +39,7 @@ import { msg, type Message } from "@/lib/i18n/message";
  */
 
 /** Peers fetched as candidates. Selection then narrows this further. */
-const MAX_PEER_CANDIDATES = 10;
+export const MAX_PEER_CANDIDATES = 10;
 
 /** Report sections needed for similarity scoring. Each costs one credit. */
 const PROFILE_SECTIONS = ["overview", "financials", "dividend", "valuation"] as const;
