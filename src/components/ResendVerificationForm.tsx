@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { resendVerificationEmail, type ResendState } from "@/app/signup/actions";
 import { useTranslation } from "@/lib/i18n/client";
 import { Field } from "./AuthForm";
+import { AUTH_BUTTON_SECONDARY } from "./authStyles";
 
 const INITIAL: ResendState = {};
 
@@ -33,7 +34,7 @@ export function ResendVerificationForm({ initialEmail }: { initialEmail: string 
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full border border-border-strong px-4 py-2.5 text-sm font-semibold text-text transition-colors hover:bg-surface-raised disabled:opacity-60"
+        className={AUTH_BUTTON_SECONDARY}
       >
         {pending ? t("auth.working") : t("auth.verify.resendCta")}
       </button>

@@ -129,6 +129,34 @@ export const IconWallet = (p: IconProps) => (
   </Icon>
 );
 
+export const IconMail = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+    <path d="m4 7.5 8 5.5 8-5.5" />
+  </Icon>
+);
+
+export const IconLock = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+  </Icon>
+);
+
+export const IconUser = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8.5" r="3.8" />
+    <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+  </Icon>
+);
+
+export const IconKey = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="m11 12 8.5-8.5M16.5 6.5l2.5 2.5" />
+  </Icon>
+);
+
 export const IconChevronRight = (p: IconProps) => (
   <Icon {...p}>
     <path d="m9 6 6 6-6 6" />

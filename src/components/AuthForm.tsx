@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import { resendLoginOtp, signIn, verifyLoginOtp, type AuthState } from "@/app/signin/actions";
 import { signUp, type SignUpState } from "@/app/signup/actions";
 import { useTranslation } from "@/lib/i18n/client";
+import { IconKey, IconLock, IconMail, IconUser } from "./ui/icons";
+import { AUTH_BUTTON } from "./authStyles";
 
 const SIGN_IN_INITIAL: AuthState = {};
 const SIGN_UP_INITIAL: SignUpState = {};
@@ -62,14 +64,14 @@ function SignUpForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
+        className={AUTH_BUTTON}
       >
         {pending ? t("auth.working") : t("auth.createAccount")}
       </button>
 
-      <p className="text-center text-sm text-text-muted">
+      <p className="text-[13px] text-text-muted">
         {t("auth.alreadyHaveAccount")}{" "}
-        <Link href="/signin" className="text-accent hover:underline">
+        <Link href="/signin" className="font-semibold text-accent underline-offset-2 hover:underline">
           {t("auth.signIn")}
         </Link>
       </p>
@@ -106,16 +108,19 @@ function SignInForm({ next }: { next?: string }) {
         required
       />
 
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm text-text-muted">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1">
+        <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-text-muted">
           <input
             type="checkbox"
             name="rememberMe"
-            className="h-4 w-4 rounded border-border-strong accent-accent"
+            className="h-[18px] w-[18px] cursor-pointer rounded accent-accent-bright"
           />
           {t("auth.rememberMe")}
         </label>
-        <Link href="/forgot-password" className="text-sm text-accent hover:underline">
+        <Link
+          href="/forgot-password"
+          className="text-[13px] font-semibold text-accent underline-offset-2 hover:underline"
+        >
           {t("auth.forgotPassword")}
         </Link>
       </div>
@@ -129,14 +134,14 @@ function SignInForm({ next }: { next?: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
+        className={AUTH_BUTTON}
       >
         {pending ? t("auth.working") : t("auth.signIn")}
       </button>
 
-      <p className="text-center text-sm text-text-muted">
+      <p className="text-[13px] text-text-muted">
         {t("auth.noAccountYet")}{" "}
-        <Link href="/signup" className="text-accent hover:underline">
+        <Link href="/signup" className="font-semibold text-accent underline-offset-2 hover:underline">
           {t("auth.createOne")}
         </Link>
       </p>
@@ -184,6 +189,7 @@ function OtpForm({ challenge }: { challenge: { id: string; email: string; next?:
           label={t("auth.otp.codeLabel")}
           type="text"
           autoComplete="one-time-code"
+          icon="key"
           required
           inputMode="numeric"
           maxLength={6}
@@ -199,14 +205,14 @@ function OtpForm({ challenge }: { challenge: { id: string; email: string; next?:
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
+          className={AUTH_BUTTON}
         >
           {pending ? t("auth.working") : t("auth.otp.submit")}
         </button>
       </form>
 
       {resendState.info ? (
-        <p role="status" className="text-center text-sm text-text-muted">
+        <p role="status" className="text-[13px] text-text-muted">
           {tm(resendState.info)}
         </p>
       ) : null}
@@ -223,6 +229,15 @@ function OtpForm({ challenge }: { challenge: { id: string; email: string; next?:
   );
 }
 
+const FIELD_ICONS = { mail: IconMail, lock: IconLock, user: IconUser, key: IconKey };
+
+/**
+ * A pill input with an icon, the label shown as its placeholder.
+ *
+ * The label is still a real <label> for screen readers; only its visible
+ * text moves into the placeholder, with the icon keeping the field
+ * recognisable once something has been typed over it.
+ */
 export function Field({
   id,
   name,
@@ -234,6 +249,7 @@ export function Field({
   inputMode,
   maxLength,
   pattern,
+  icon,
 }: {
   id: string;
   name: string;
@@ -245,21 +261,29 @@ export function Field({
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   maxLength?: number;
   pattern?: string;
+  icon?: keyof typeof FIELD_ICONS;
 }) {
+  const Icon =
+    FIELD_ICONS[icon ?? (type === "email" ? "mail" : type === "password" ? "lock" : "user")];
+
   return (
-    <label htmlFor={id} className="block">
-      <span className="text-[11px] uppercase tracking-wide text-text-subtle">{label}</span>
+    <label htmlFor={id} className="relative block">
+      <span className="sr-only">{label}</span>
+      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
+        <Icon size={18} />
+      </span>
       <input
         id={id}
         name={name}
         type={type}
+        placeholder={label}
         autoComplete={autoComplete}
         required={required}
         defaultValue={defaultValue}
         inputMode={inputMode}
         maxLength={maxLength}
         pattern={pattern}
-        className={`mt-1 w-full rounded-full border border-border bg-surface px-3.5 py-2.5 text-sm text-text focus:border-accent focus:outline-none ${
+        className={`h-12 w-full rounded-full border border-transparent bg-accent-soft pl-12 pr-4 text-sm text-text placeholder:text-text-muted transition-colors focus:border-accent focus:bg-surface focus:outline-none ${
           inputMode === "numeric" ? "tracking-[0.3em]" : ""
         }`}
       />

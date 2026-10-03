@@ -5,6 +5,7 @@ import { checkTokenValidity } from "@/lib/auth/tokens";
 import { getTranslator } from "@/lib/i18n/server";
 import { AuthLayout } from "@/components/AuthLayout";
 import { EmptyState } from "@/components/ui/primitives";
+import { AUTH_BUTTON } from "@/components/authStyles";
 
 export const metadata = { title: "Verify email | SHADOW IDX" };
 export const dynamic = "force-dynamic";
@@ -49,7 +50,7 @@ export default async function VerifyEmailPage({
     <AuthLayout title={t("auth.verify.successTitle")} subtitle={t("auth.verify.successBody")}>
       <Link
         href="/signin?verified=1"
-        className="inline-flex w-full items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-colors hover:bg-accent-hover"
+        className={AUTH_BUTTON}
       >
         {t("auth.signIn")}
       </Link>

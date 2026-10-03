@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/client";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
-import { Logo } from "./ui/Logo";
+import { Logo, LogoMark } from "./ui/Logo";
 import { Container } from "./ui/primitives";
 
 /**
@@ -20,23 +20,30 @@ export function GuestHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
-      <Container className="flex items-center justify-between gap-4 py-3.5">
+      <Container className="flex items-center justify-between gap-3 py-3.5">
         <Link href="/" aria-label="SHADOW IDX" className="shrink-0">
-          <Logo tagline={t("brand.tagline")} />
+          {/* On a phone the wordmark does not fit beside both toggles and
+              both buttons, so the mark stands in for it. */}
+          <span className="sm:hidden">
+            <LogoMark size={36} />
+          </span>
+          <span className="hidden sm:block">
+            <Logo tagline={t("brand.tagline")} />
+          </span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <LanguageToggle />
           <ThemeToggle />
           <Link
             href="/signin"
-            className="rounded-full px-4 py-2.5 text-sm font-semibold text-text-muted transition-colors hover:text-text"
+            className="whitespace-nowrap rounded-full px-2.5 py-2.5 text-sm font-semibold text-text-muted transition-colors hover:text-text sm:px-4"
           >
             {t("nav.signIn")}
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-accent-bright px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-hover"
+            className="whitespace-nowrap rounded-full bg-accent-bright px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-hover sm:px-5"
           >
             {t("nav.register")}
           </Link>
