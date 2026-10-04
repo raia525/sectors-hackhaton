@@ -18,6 +18,19 @@ export const FIT_FLOOR = 0.3;
 export const MIN_PEERS = 3;
 
 /**
+ * The three bars a divergence must clear to count as a signal. An admin can
+ * raise them (src/lib/settings/app.ts) but never lower them below the
+ * constants above.
+ */
+export interface Bars {
+  signalZ: number;
+  fitFloor: number;
+  minPeers: number;
+}
+
+export const SHIPPED_BARS: Bars = { signalZ: SIGNAL_Z, fitFloor: FIT_FLOOR, minPeers: MIN_PEERS };
+
+/**
  * Resolved signals needed before a rate is shown. Chosen, not fitted: below
  * about ten, one or two outcomes swing the percentage by ten points or more.
  */
@@ -50,21 +63,24 @@ export interface TrackRecord {
   minSample: number;
 }
 
-export function isSignal(row: Pick<ResolvedRow, "zScore" | "fitQuality" | "constituentCount">) {
+export function isSignal(
+  row: Pick<ResolvedRow, "zScore" | "fitQuality" | "constituentCount">,
+  bars: Bars = SHIPPED_BARS,
+) {
   return (
-    Math.abs(row.zScore) >= SIGNAL_Z &&
-    row.fitQuality >= FIT_FLOOR &&
-    row.constituentCount >= MIN_PEERS
+    Math.abs(row.zScore) >= bars.signalZ &&
+    row.fitQuality >= bars.fitFloor &&
+    row.constituentCount >= bars.minPeers
   );
 }
 
-export function summarizeTrackRecord(rows: ResolvedRow[]): TrackRecord {
+export function summarizeTrackRecord(rows: ResolvedRow[], bars: Bars = SHIPPED_BARS): TrackRecord {
   // A day with no direction cannot continue or reverse, so it is left out
   // rather than counted as either.
   const directional = rows.filter((r) => r.zScore !== 0);
 
-  const signals = bucket(directional.filter(isSignal));
-  const ordinary = bucket(directional.filter((r) => !isSignal(r)));
+  const signals = bucket(directional.filter((r) => isSignal(r, bars)));
+  const ordinary = bucket(directional.filter((r) => !isSignal(r, bars)));
 
   return {
     signals,

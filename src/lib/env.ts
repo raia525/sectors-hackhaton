@@ -96,6 +96,13 @@ const schema = z.object({
   SMTP_PASSWORD: emptyAsUndefined(z.string()),
   NOTIFICATION_FROM_EMAIL: emptyAsUndefined(z.string().email()),
 
+  /**
+   * xAI (Grok) key for the chatbot. Optional: without it the chat button is
+   * hidden and the rest of the app is unaffected. Server only, like every
+   * value here; the browser talks to /api/chat, never to xAI.
+   */
+  XAI_API_KEY: emptyAsUndefined(z.string().min(20)),
+
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 characters."),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });

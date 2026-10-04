@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/server";
 import { Container } from "@/components/ui/primitives";
 import { AdminNav } from "./AdminNav";
+import { I18nExtension } from "@/lib/i18n/client";
+import { adminEn, adminId } from "@/lib/i18n/admin-dictionary";
 
 export const metadata = { title: "Admin | SHADOW IDX" };
 export const dynamic = "force-dynamic";
@@ -21,6 +23,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { href: "/admin/content", label: t("admin.nav.content") },
     { href: "/admin/announcements", label: t("admin.nav.announcements") },
     { href: "/admin/universe", label: t("admin.nav.universe") },
+    { href: "/admin/ticker-strip", label: t("admin.nav.strip") },
+    { href: "/admin/settings", label: t("admin.nav.settings") },
     { href: "/admin/colours", label: t("admin.nav.colours") },
     { href: "/admin/assets", label: t("admin.nav.assets") },
     { href: "/admin/audit", label: t("admin.nav.audit") },
@@ -33,10 +37,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <p className="px-3 pb-3 pt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-subtle">
             {t("admin.title")}
           </p>
-          <AdminNav items={items} />
+          <AdminNav items={items} label={t("admin.title")} />
           <p className="mt-3 truncate border-t border-border px-3 pt-3 text-[12px] text-text-subtle">{admin.email}</p>
         </aside>
-        <div className="min-w-0 space-y-6">{children}</div>
+        {/* Admin copy reaches the browser only here, inside a response that
+            requireAdmin() already limited to admins. */}
+        <I18nExtension messages={{ en: adminEn, id: adminId }}>
+          <div className="min-w-0 space-y-6">{children}</div>
+        </I18nExtension>
       </div>
     </Container>
   );

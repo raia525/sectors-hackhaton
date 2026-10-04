@@ -17,6 +17,7 @@ import { SESSION_COOKIE, sessionWasRemembered } from "@/lib/auth/session";
 import { isLocale, LOCALE_COOKIE } from "@/lib/i18n/locales";
 import { msg } from "@/lib/i18n/message";
 import type { FormState } from "@/lib/forms/state";
+import { ANALYSIS_PANELS, parsePreferences, userPreferencesSchema } from "@/lib/settings/user";
 
 /**
  * The signed-in user's own account. Every action reads the user from the
@@ -50,6 +51,41 @@ export async function updatePreferences(_prev: FormState, formData: FormData): P
     data: { locale, briefOptIn: formData.get("briefOptIn") === "on" },
   });
   (await cookies()).set(LOCALE_COOKIE, locale, { path: "/", maxAge: 31536000, sameSite: "lax" });
+  revalidatePath("/", "layout");
+  return { ok: msg("account.saved") };
+}
+
+/**
+ * Layout and defaults: which analysis panels show and in what order, the
+ * start page, and the alert threshold new watchlist stocks begin with.
+ * Each panel arrives as a "show" checkbox and a position; shown panels are
+ * kept in position order, ties broken by the default order.
+ */
+export async function updateLayout(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await currentUserOrRedirect();
+
+  const panels = ANALYSIS_PANELS.map((panel, i) => ({
+    panel,
+    show: formData.get(`show_${panel}`) === "on",
+    order: Number(formData.get(`order_${panel}`)) || i + 1,
+    i,
+  }))
+    .filter((p) => p.show)
+    .sort((a, b) => a.order - b.order || a.i - b.i)
+    .map((p) => p.panel);
+
+  const parsed = userPreferencesSchema.safeParse({
+    panels,
+    homeTab: formData.get("homeTab"),
+    defaultThreshold: Number(formData.get("defaultThreshold")),
+  });
+  if (!parsed.success) return { error: msg("account.error.layout") };
+
+  const current = await prisma.user.findUnique({ where: { id: user.id }, select: { preferences: true } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { preferences: { ...parsePreferences(current?.preferences), ...parsed.data } },
+  });
   revalidatePath("/", "layout");
   return { ok: msg("account.saved") };
 }

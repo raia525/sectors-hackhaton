@@ -40,7 +40,7 @@ export interface AuthState {
 /** Only an internal, site-relative path is honoured, never an absolute URL. */
 function safeNextPath(value: FormDataEntryValue | null): string {
   const raw = typeof value === "string" ? value : "";
-  return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/watchlist";
+  return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
 }
 
 export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {

@@ -69,3 +69,33 @@ describe("translate", () => {
     }
   });
 });
+
+describe("dictionary consistency", () => {
+  // {plural} adds an English "s" and has no Indonesian counterpart.
+  const placeholders = (s: string) =>
+    (s.match(/\{[a-zA-Z]+\}/g) ?? []).filter((p) => p !== "{plural}").sort().join(",");
+
+  it("keeps the same {placeholders} in both languages", () => {
+    const mismatched = Object.keys(en).filter(
+      (key) => placeholders(en[key as keyof typeof en]) !== placeholders(id[key as keyof typeof en]),
+    );
+    expect(mismatched).toEqual([]);
+  });
+
+  it("uses no em dash anywhere, per the house style", () => {
+    const withDash = Object.entries({ ...en, ...id })
+      .filter(([, value]) => value.includes("—"))
+      .map(([key]) => key);
+    expect(withDash).toEqual([]);
+  });
+
+  it("names each concept the same way in Indonesian (see the glossary in AGENTS.md)", () => {
+    // English words the Indonesian copy replaced with one fixed term each.
+    // Placeholders are stripped first, so {twinPct} does not count.
+    const banned = /\b(twin|peers?|similarity|coverage|positioning|foreign flow)\b/i;
+    const offenders = Object.entries(id)
+      .filter(([, value]) => banned.test(value.replace(/\{[^}]+\}/g, "")))
+      .map(([key]) => key);
+    expect(offenders).toEqual([]);
+  });
+});

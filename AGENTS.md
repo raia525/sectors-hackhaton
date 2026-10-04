@@ -69,6 +69,8 @@ These cost real debugging time. Check here before assuming a bug is ours.
 | `src/lib/intelligence/` | Daily run, market brief, track record, calendar |
 | `src/lib/admin/` | Pure checks behind the admin panel: content overrides, palettes, uploads, schedules |
 | `src/lib/brand/` | Per-request site settings: palette, logo, favicon, text overrides, announcements |
+| `src/lib/settings/` | Admin app settings and per-user preferences, parsed with defaults |
+| `src/lib/chat/` | The Grok chatbot: stream parsing, prompt rules, read-only tools |
 | `src/app/` | Next.js App Router pages and route handlers |
 
 `src/lib/**` is pure and dependency-free where possible, which is what makes it
@@ -92,12 +94,59 @@ rather than one long one. See `src/lib/intelligence/pipeline.ts`.
 - Functions run in `sin1`, next to the Neon database in Singapore. Running
   them in the default US region made every query cross the Pacific.
 
+## Sections, conclusions and settings
+
+The signed-in app has three menus, each with tabs (`SectionTabs`): Market
+(`/market`, sectors, track record), Stocks (`/stocks` analyse, compare,
+ticker list) and Portfolio (`/portfolio` watchlist, alerts, calendar).
+`/brief`, `/compare` and `/watchlist` redirect (next.config.ts), and
+`/?symbol=` goes to `/stocks?symbol=`, because sent emails link there.
+
+- Every page that shows an analysis opens with a `ConclusionBlock` built by
+  `src/lib/intelligence/summary.ts`. It only picks sentences from figures
+  the engines produced. A weak twin, too few peers or too little history
+  makes the conclusion a refusal, said first.
+- Admin settings live in `AppSetting` rows, one per group, parsed by
+  `src/lib/settings/app.ts`. Signal bars (`SIGNAL_Z`, `FIT_FLOOR`,
+  `MIN_PEERS`) can be raised but never lowered below the shipped values.
+  Engines take them as a `bars` parameter that defaults to the constants.
+- User preferences (panel layout, start page, default alert level) are JSON
+  on `User.preferences`, parsed by `src/lib/settings/user.ts`.
+- Sectors in the ticker directory are learnt from stored analyses, never
+  fetched for every company (about 950 credits). The list says how many
+  sectors it knows.
+
+## Indonesian glossary
+
+One term per concept, held by a test in `dictionary.test.ts`: twin =
+kembaran (kembaran sintetis), peer = pembanding, similarity = kemiripan,
+market = pasar, stock specific = khusus saham, coverage = liputan berita,
+fit = kecocokan, foreign flow = aliran dana asing, positioning = posisi.
+Return, watchlist, z-score and smart money stay in English.
+
+## The chatbot
+
+`/api/chat` streams Grok (xAI, OpenAI compatible, plain fetch) replies as
+NDJSON. `XAI_API_KEY` is optional and server only; without it the widget is
+hidden. The model answers through tools that read stored data only, so a
+question never spends a Sectors credit, and `get_watchlist` uses the
+session's user id, never one the model supplies. The prompt rules (no
+advice, no "insider", name the data date, no em dash) are tested; em dashes
+are also stripped server side, and the widget renders only links to the
+app's own analysis pages. Admin > Settings holds the model, on/off and the
+daily per-user limit.
+
 ## Admin, roles and branding
 
 `User.role` is `USER` or `ADMIN`. The panel lives under `/admin`.
 
 - `requireAdmin()` answers 404, not 403, so the panel's existence is not
-  revealed. Every admin server action calls it again, because an action is
+  revealed. Nothing a regular user's browser receives may name the panel:
+  its copy lives in the server-only `admin-dictionary.ts`, handed to client
+  components through `I18nExtension` inside admin pages only, and the menu
+  entry arrives as a prop for admins only. A test fails if a public
+  dictionary key or value mentions admin; keep client-side comments
+  neutral too. Every admin server action calls it again, because an action is
   a public endpoint, and writes an `AdminAuditLog` row.
 - Grant the role with `npm run admin:grant -- <email>` (or the same script
   under `dotenv -e .env.production.local` for production). The account must

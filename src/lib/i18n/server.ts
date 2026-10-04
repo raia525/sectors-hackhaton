@@ -5,6 +5,9 @@ import { renderMessage, type Message } from "./message";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type Locale } from "./locales";
 import type { TranslationKey } from "./dictionary";
 import { getSiteSettings } from "@/lib/brand/settings";
+import { adminEn, adminId } from "./admin-dictionary";
+
+const ADMIN = { en: adminEn, id: adminId } as const;
 
 /** Reads the viewer's chosen language from the cookie the client sets. */
 export async function getLocale(): Promise<Locale> {
@@ -29,7 +32,9 @@ export async function getTranslator(): Promise<{
   tm: (message: Message) => string;
 }> {
   const [locale, settings] = await Promise.all([getLocale(), getSiteSettings()]);
-  const overrides = settings.overrides[locale];
+  // Admin copy is merged here, on the server only; content edits win over
+  // it, though the two never share a key.
+  const overrides = { ...ADMIN[locale], ...settings.overrides[locale] };
   const t = (key: TranslationKey, params?: FlatParams) => translate(locale, key, params, overrides);
   return { locale, t, tm: (message) => renderMessage(message, t) };
 }

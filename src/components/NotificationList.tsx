@@ -61,7 +61,7 @@ export function NotificationList({
           >
             <div className="flex items-start justify-between gap-3">
               <Link
-                href={`/?symbol=${n.symbol}`}
+                href={`/stocks?symbol=${n.symbol}`}
                 className="text-sm font-medium leading-snug text-text hover:text-accent"
               >
                 {n.title}

@@ -12,23 +12,22 @@ import { KeyStatsPanel } from "./KeyStatsPanel";
 import { CorporateActionsPanel } from "./CorporateActionsPanel";
 import { SeasonalityPanel } from "./SeasonalityPanel";
 import { SmartMoneyPanel } from "./SmartMoneyPanel";
-import {
-  Card,
-  CardHeader,
-  Caveats,
-  EmptyState,
-  InkPanel,
-  PageHeader,
-} from "./ui/primitives";
+import { Caveats, CollapsibleCard, EmptyState, InkPanel, PageHeader } from "./ui/primitives";
+import { ConclusionBlock, TONE_KEY } from "./ConclusionBlock";
+import { concludeStock } from "@/lib/intelligence/summary";
+import { getSignalBars } from "@/lib/settings/server";
+import { parsePreferences, type AnalysisPanel } from "@/lib/settings/user";
+import type { ReactNode } from "react";
 import { IconChevronLeft, IconCompare } from "./ui/icons";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 
 /**
  * Server component that runs a full analysis and lays out the result.
  *
- * Reading order, top to bottom: the headline figures, the same result told as
- * a story, the evidence behind it (the twin, its peers and the return split,
- * on the dark panel), then the supporting detail and its limits.
+ * Reading order, top to bottom: the conclusion, the headline figures, the
+ * same result told as a story, the evidence behind it (the twin, its peers
+ * and the return split, on the dark panel), then the supporting panels in
+ * the order the reader chose on their account page, and the limits.
  *
  * Errors are rendered as explanations rather than thrown, because the common
  * failure modes here are expected states, not bugs: a ticker with too little
@@ -41,7 +40,7 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
 
   // A signed-in user's holding lets corporate actions be shown in rupiah. The
   // lookup is skipped entirely for anonymous visitors, who have no position.
-  const position = await loadPosition(symbol);
+  const [position, prefs, bars] = await Promise.all([loadPosition(symbol), loadPreferences(), getSignalBars()]);
 
   let result;
   try {
@@ -53,13 +52,61 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
   const { shadow, realityCheck, notices } = result;
   const hasTwin = shadow.constituents.length > 0;
 
+  const conclusion = concludeStock(
+    {
+      symbol: result.symbol,
+      sessions: shadow.fitWindow,
+      zScore: shadow.zScore,
+      fitQuality: shadow.fitQuality,
+      peers: shadow.constituents.length,
+      total: shadow.attribution.total,
+      market: shadow.attribution.market,
+      sector: shadow.attribution.sector,
+      idio: shadow.attribution.idiosyncratic,
+      realityVerdict: realityCheck.verdict,
+      upcoming: result.corporateActions
+        .filter((a) => a.timing === "upcoming")
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((a) => ({ kind: a.kind, date: a.date })),
+    },
+    bars,
+  );
+
+  const panels: Record<AnalysisPanel, ReactNode> = {
+    keyStats: (
+      <CollapsibleCard title={t("analysis.keyStatsTitle")} description={t("analysis.keyStatsDescription")}>
+        <KeyStatsPanel stats={result.keyStats} />
+      </CollapsibleCard>
+    ),
+    corporateActions: (
+      <CollapsibleCard title={t("analysis.actionsTitle")} description={t("analysis.actionsDescription")}>
+        <CorporateActionsPanel
+          items={result.corporateActions}
+          upcomingIncomeIdr={result.upcomingIncomeIdr}
+          hasPosition={position !== null}
+        />
+      </CollapsibleCard>
+    ),
+    seasonality: (
+      <CollapsibleCard title={t("analysis.seasonalityTitle")} description={t("analysis.seasonalityDescription")}>
+        <SeasonalityPanel data={result.seasonality} />
+      </CollapsibleCard>
+    ),
+    smartMoney: result.smartMoney ? (
+      <CollapsibleCard title={t("analysis.smartMoneyTitle")} description={t("analysis.smartMoneyDescription")}>
+        <SmartMoneyPanel signal={result.smartMoney} />
+      </CollapsibleCard>
+    ) : null,
+  };
+  const hiddenCount = 4 - prefs.panels.length;
+
   // The compare page takes up to four symbols: this stock plus its three
   // heaviest peers is the most natural comparison to offer.
   const peers = [...shadow.constituents]
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 3)
     .map((c) => c.symbol);
-  const compareHref = `/compare?symbols=${[result.symbol, ...peers].join(",")}`;
+  const compareHref = `/stocks/compare?symbols=${[result.symbol, ...peers].join(",")}`;
 
   return (
     <div className="space-y-6">
@@ -94,6 +141,14 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
             ) : null}
           </>
         }
+      />
+
+      <ConclusionBlock
+        label={t("conclusion.label")}
+        toneLabel={t(TONE_KEY[conclusion.tone])}
+        tone={conclusion.tone}
+        headline={tm(conclusion.headline)}
+        points={conclusion.points.map((p) => tm(p))}
       />
 
       {hasTwin ? (
@@ -134,7 +189,7 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
                 zScore={shadow.zScore}
                 fitQuality={shadow.fitQuality}
                 sessions={shadow.fitWindow}
-                trackHref="/watchlist"
+                trackHref="/portfolio"
               />
             </div>
           </InkPanel>
@@ -148,44 +203,15 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
         />
       )}
 
-      <Card>
-        <CardHeader
-          title={t("analysis.keyStatsTitle")}
-          description={t("analysis.keyStatsDescription")}
-        />
-        <KeyStatsPanel stats={result.keyStats} />
-      </Card>
+      {prefs.panels.map((panel) => (panels[panel] ? <div key={panel}>{panels[panel]}</div> : null))}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title={t("analysis.actionsTitle")}
-            description={t("analysis.actionsDescription")}
-          />
-          <CorporateActionsPanel
-            items={result.corporateActions}
-            upcomingIncomeIdr={result.upcomingIncomeIdr}
-            hasPosition={position !== null}
-          />
-        </Card>
-
-        <Card>
-          <CardHeader
-            title={t("analysis.seasonalityTitle")}
-            description={t("analysis.seasonalityDescription")}
-          />
-          <SeasonalityPanel data={result.seasonality} />
-        </Card>
-      </div>
-
-      {result.smartMoney ? (
-        <Card>
-          <CardHeader
-            title={t("analysis.smartMoneyTitle")}
-            description={t("analysis.smartMoneyDescription")}
-          />
-          <SmartMoneyPanel signal={result.smartMoney} />
-        </Card>
+      {hiddenCount > 0 ? (
+        <p className="text-sm text-text-muted">
+          {t("analysis.panelsHidden", { count: hiddenCount })}{" "}
+          <Link href="/account#layout" className="font-semibold text-accent hover:underline">
+            {t("analysis.panelsChange")}
+          </Link>
+        </p>
       ) : null}
 
       <Caveats
@@ -198,6 +224,18 @@ export async function AnalysisView({ symbol }: { symbol: string }) {
       ) : null}
     </div>
   );
+}
+
+/** The reader's panel layout; the default layout when signed out or on error. */
+async function loadPreferences() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return parsePreferences(null);
+    const row = await prisma.user.findUnique({ where: { id: user.id }, select: { preferences: true } });
+    return parsePreferences(row?.preferences);
+  } catch {
+    return parsePreferences(null);
+  }
 }
 
 /**

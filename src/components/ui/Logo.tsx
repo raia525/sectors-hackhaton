@@ -13,7 +13,7 @@ import { createContext, useContext, type ReactNode } from "react";
  * What shines past its shadow is its own.
  *
  * The disc takes the active palette's accent (`--accent-bright`), so a
- * palette change in the admin panel recolours the mark too. The tile is a
+ * palette change recolours the mark too. The tile is a
  * fixed near-black, so the mark reads on light pages and dark panels alike.
  */
 export function LogoMark({ size = 36, className = "" }: { size?: number; className?: string }) {
@@ -46,13 +46,13 @@ export function LogoMark({ size = 36, className = "" }: { size?: number; classNa
 
 const BrandContext = createContext<{ logoUrl: string | null }>({ logoUrl: null });
 
-/** Carries the admin-uploaded logo, if any, to every place the mark is drawn. */
+/** Carries the uploaded logo, if any, to every place the mark is drawn. */
 export function BrandProvider({ logoUrl, children }: { logoUrl: string | null; children: ReactNode }) {
   return <BrandContext.Provider value={{ logoUrl }}>{children}</BrandContext.Provider>;
 }
 
 /**
- * The mark as the site shows it: the uploaded logo when an admin has set
+ * The mark as the site shows it: the uploaded logo when one has been set
  * one, otherwise the built-in eclipse. An upload replaces the symbol only;
  * the name beside it stays as text, so it remains readable and translatable.
  */
@@ -60,7 +60,7 @@ export function BrandMark({ size = 36, className = "" }: { size?: number; classN
   const { logoUrl } = useContext(BrandContext);
   if (logoUrl) {
     return (
-      // A plain img: an admin upload has unknown dimensions and may be SVG,
+      // A plain img: an upload has unknown dimensions and may be SVG,
       // which next/image does not optimise anyway.
       // eslint-disable-next-line @next/next/no-img-element
       <img

@@ -5,9 +5,9 @@ import { useActionState, useState } from "react";
 import {
   addToWatchlist,
   removeFromWatchlist,
-  updateThreshold,
+  updateWatchItem,
   type ActionState,
-} from "@/app/watchlist/actions";
+} from "@/app/portfolio/actions";
 import { SymbolCombobox, type DirectoryMatch } from "./SymbolCombobox";
 import { useTranslation } from "@/lib/i18n/client";
 
@@ -23,13 +23,17 @@ import { useTranslation } from "@/lib/i18n/client";
 interface Item {
   symbol: string;
   zScoreThreshold: number;
+  notifyOnCorporateAction: boolean;
+  notifyOnSmartMoney: boolean;
   lastNotifiedAt: string | null;
   holding: { lots: number; avgPrice: number } | null;
+  /** The latest stored analysis, if the daily run has reached this stock. */
+  latest: { zScore: number; runDate: string; signal: boolean } | null;
 }
 
 const INITIAL: ActionState = {};
 
-export function WatchlistManager({ items }: { items: Item[] }) {
+export function WatchlistManager({ items, defaultThreshold = 2 }: { items: Item[]; defaultThreshold?: number }) {
   const { t } = useTranslation();
   const [addState, addAction, addPending] = useActionState(addToWatchlist, INITIAL);
   const [showPosition, setShowPosition] = useState(false);
@@ -64,7 +68,7 @@ export function WatchlistManager({ items }: { items: Item[] }) {
           </button>
         </div>
 
-        <ThresholdField name="zScoreThreshold" defaultValue={2} />
+        <ThresholdField id="threshold-new" defaultValue={defaultThreshold} />
 
         <div>
           <button
@@ -129,38 +133,45 @@ export function WatchlistManager({ items }: { items: Item[] }) {
 
 function WatchlistRow({ item }: { item: Item }) {
   const { t } = useTranslation();
-  const [removeState, removeAction, removePending] = useActionState(
-    removeFromWatchlist,
-    INITIAL,
-  );
-  const [updateState, updateAction, updatePending] = useActionState(
-    updateThreshold,
-    INITIAL,
-  );
+  const [removeState, removeAction, removePending] = useActionState(removeFromWatchlist, INITIAL);
+  const [updateState, updateAction, updatePending] = useActionState(updateWatchItem, INITIAL);
+  const id = item.symbol.toLowerCase();
 
   return (
     <li className="rounded-[var(--radius-sm)] border border-border bg-surface-raised p-3">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <Link
-            href={`/?symbol=${item.symbol}`}
-            className="text-sm font-medium text-text hover:text-accent"
-          >
-            {item.symbol}
-          </Link>
-          {item.holding ? (
-            <p className="text-xs text-text-subtle">
-              {t("watchlist.lotsAt", {
-                lots: item.holding.lots,
-                price: item.holding.avgPrice.toLocaleString("id-ID"),
-              })}
-            </p>
-          ) : null}
-          {item.lastNotifiedAt ? (
-            <p className="text-xs text-text-subtle">
-              {t("watchlist.lastAlert", { date: item.lastNotifiedAt.slice(0, 10) })}
-            </p>
-          ) : null}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/stocks?symbol=${item.symbol}`} className="text-sm font-bold text-text hover:text-accent">
+              {item.symbol}
+            </Link>
+            {item.latest ? (
+              <span
+                className={`tnum rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  item.latest.signal ? "bg-signal-extreme/12 text-signal-extreme" : "bg-surface text-text-muted"
+                }`}
+              >
+                {t(item.latest.signal ? "watchlist.latestSignal" : "watchlist.latestQuiet", {
+                  z: item.latest.zScore.toFixed(1),
+                  date: item.latest.runDate,
+                })}
+              </span>
+            ) : (
+              <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] text-text-subtle">
+                {t("watchlist.latestNone")}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-text-subtle">
+            {t("watchlist.alertSummary", { z: item.zScoreThreshold.toFixed(1) })}
+            {item.holding
+              ? ` · ${t("watchlist.lotsAt", {
+                  lots: item.holding.lots,
+                  price: item.holding.avgPrice.toLocaleString("id-ID"),
+                })}`
+              : ""}
+            {item.lastNotifiedAt ? ` · ${t("watchlist.lastAlert", { date: item.lastNotifiedAt.slice(0, 10) })}` : ""}
+          </p>
         </div>
 
         <form action={removeAction}>
@@ -175,21 +186,68 @@ function WatchlistRow({ item }: { item: Item }) {
         </form>
       </div>
 
-      <form action={updateAction} className="mt-3">
-        <input type="hidden" name="symbol" value={item.symbol} />
-        <ThresholdField
-          name="zScoreThreshold"
-          defaultValue={item.zScoreThreshold}
-          compact
-        />
-        <button
-          type="submit"
-          disabled={updatePending}
-          className="mt-1.5 text-xs text-accent hover:underline disabled:opacity-50"
-        >
-          {updatePending ? t("watchlist.saving") : t("watchlist.saveThreshold")}
-        </button>
-      </form>
+      <details className="group mt-2">
+        <summary className="cursor-pointer list-none text-xs font-semibold text-accent hover:underline">
+          {t("watchlist.settings")}
+        </summary>
+        <form action={updateAction} className="mt-3 space-y-3">
+          <input type="hidden" name="symbol" value={item.symbol} />
+          <ThresholdField id={`threshold-${id}`} defaultValue={item.zScoreThreshold} />
+          <fieldset className="space-y-1.5">
+            <legend className="text-[11px] uppercase tracking-wide text-text-subtle">{t("watchlist.alsoAlert")}</legend>
+            <label className="flex items-center gap-2 text-sm text-text">
+              <input
+                type="checkbox"
+                name="notifyOnCorporateAction"
+                defaultChecked={item.notifyOnCorporateAction}
+                className="h-4 w-4 accent-accent-bright"
+              />
+              {t("watchlist.notifyCorporateAction")}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text">
+              <input
+                type="checkbox"
+                name="notifyOnSmartMoney"
+                defaultChecked={item.notifyOnSmartMoney}
+                className="h-4 w-4 accent-accent-bright"
+              />
+              {t("watchlist.notifySmartMoney")}
+            </label>
+          </fieldset>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("watchlist.lots")}</span>
+              <input
+                name="lots"
+                type="number"
+                min={0}
+                step={1}
+                defaultValue={item.holding?.lots ?? ""}
+                className="mt-1 w-full rounded-full border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] uppercase tracking-wide text-text-subtle">{t("watchlist.avgPrice")}</span>
+              <input
+                name="avgPrice"
+                type="number"
+                min={0}
+                step="any"
+                defaultValue={item.holding?.avgPrice ?? ""}
+                className="mt-1 w-full rounded-full border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
+              />
+            </label>
+            <p className="col-span-2 text-xs text-text-subtle">{t("watchlist.positionClearHint")}</p>
+          </div>
+          <button
+            type="submit"
+            disabled={updatePending}
+            className="rounded-full bg-accent px-4 py-1.5 text-xs font-bold text-accent-contrast transition-colors hover:bg-accent-hover disabled:opacity-60"
+          >
+            {updatePending ? t("watchlist.saving") : t("watchlist.saveSettings")}
+          </button>
+        </form>
+      </details>
 
       <FormMessage state={removeState} />
       <FormMessage state={updateState} />
@@ -203,15 +261,7 @@ function WatchlistRow({ item }: { item: Item }) {
  * Under a normal approximation |z| > 2 is roughly a one-in-twenty session, so
  * the copy converts the statistic into an expected frequency.
  */
-function ThresholdField({
-  name,
-  defaultValue,
-  compact = false,
-}: {
-  name: string;
-  defaultValue: number;
-  compact?: boolean;
-}) {
+function ThresholdField({ id, defaultValue }: { id: string; defaultValue: number }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(defaultValue);
 
@@ -230,7 +280,7 @@ function ThresholdField({
     <div>
       <div className="flex items-baseline justify-between">
         <label
-          htmlFor={`${name}-${compact ? "row" : "new"}`}
+          htmlFor={id}
           className="text-[11px] uppercase tracking-wide text-text-subtle"
         >
           {t("watchlist.alertAbove")}
@@ -240,8 +290,8 @@ function ThresholdField({
         </span>
       </div>
       <input
-        id={`${name}-${compact ? "row" : "new"}`}
-        name={name}
+        id={id}
+        name="zScoreThreshold"
         type="range"
         min={1}
         max={4}
@@ -249,10 +299,10 @@ function ThresholdField({
         value={value}
         onChange={(e) => setValue(Number(e.target.value))}
         className="mt-1 w-full accent-[var(--accent)]"
-        aria-describedby={`${name}-meaning-${compact ? "row" : "new"}`}
+        aria-describedby={`${id}-meaning`}
       />
       <p
-        id={`${name}-meaning-${compact ? "row" : "new"}`}
+        id={`${id}-meaning`}
         className="mt-0.5 text-xs text-text-subtle"
       >
         {t(meaningKey)}

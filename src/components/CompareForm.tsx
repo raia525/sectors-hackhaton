@@ -54,7 +54,7 @@ export function CompareForm({ initialSymbols }: { initialSymbols: string[] }) {
       return;
     }
     startTransition(() => {
-      router.push(`/compare?symbols=${symbols.join(",")}`);
+      router.push(`/stocks/compare?symbols=${symbols.join(",")}`);
     });
   };
 

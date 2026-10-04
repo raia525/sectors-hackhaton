@@ -17,9 +17,31 @@ import {
   changePassword,
   deleteAccount,
   signOutEverywhere,
+  updateLayout,
   updatePreferences,
   updateProfile,
 } from "./actions";
+import { ANALYSIS_PANELS, HOME_TABS, parsePreferences, type AnalysisPanel } from "@/lib/settings/user";
+import type { TranslationKey } from "@/lib/i18n/dictionary";
+import { I18nExtension } from "@/lib/i18n/client";
+import { adminEn, adminId } from "@/lib/i18n/admin-dictionary";
+
+/**
+ * The only role strings this page can need, sent to an admin's browser and
+ * to no one else's (the "last admin" refusal is shown by a client form).
+ */
+const ROLE_KEYS = ["account.roleAdmin", "account.error.lastAdmin"] as const;
+const roleMessages = {
+  en: Object.fromEntries(ROLE_KEYS.map((k) => [k, adminEn[k]])),
+  id: Object.fromEntries(ROLE_KEYS.map((k) => [k, adminId[k]])),
+};
+
+const PANEL_LABEL: Record<AnalysisPanel, TranslationKey> = {
+  keyStats: "analysis.keyStatsTitle",
+  corporateActions: "analysis.actionsTitle",
+  seasonality: "analysis.seasonalityTitle",
+  smartMoney: "analysis.smartMoneyTitle",
+};
 
 export const metadata = { title: "Account | SHADOW IDX" };
 export const dynamic = "force-dynamic";
@@ -41,15 +63,17 @@ export default async function AccountPage() {
       emailVerifiedAt: true,
       briefOptIn: true,
       role: true,
+      preferences: true,
     },
   });
+  const prefs = parsePreferences(user.preferences);
   const memberSince = user.createdAt.toLocaleDateString(locale === "id" ? "id-ID" : "en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  return (
+  const content = (
     <Container className="space-y-6 py-8 lg:py-10">
       <PageHeader
         title={t("account.title")}
@@ -109,6 +133,68 @@ export default async function AccountPage() {
           </ActionForm>
         </Card>
 
+        <Card className="scroll-mt-24 lg:col-span-2" id="layout">
+          <CardHeader title={t("account.layoutTitle")} description={t("account.layoutDescription")} />
+          <ActionForm action={updateLayout} className="space-y-6">
+            <fieldset>
+              <legend className={LABEL}>{t("account.layoutPanels")}</legend>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {ANALYSIS_PANELS.map((panel, i) => {
+                  const position = prefs.panels.indexOf(panel);
+                  return (
+                    <li key={panel} className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] bg-surface-raised px-4 py-3">
+                      <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-text">
+                        <input type="checkbox" name={`show_${panel}`} defaultChecked={position >= 0} className="h-[18px] w-[18px] accent-accent-bright" />
+                        {t(PANEL_LABEL[panel])}
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-text-subtle">
+                        {t("account.layoutPosition")}
+                        <select
+                          name={`order_${panel}`}
+                          defaultValue={String(position >= 0 ? position + 1 : i + 1)}
+                          className="h-8 rounded-full border border-border bg-surface px-2 text-sm text-text"
+                        >
+                          {ANALYSIS_PANELS.map((_, n) => (
+                            <option key={n} value={n + 1}>{n + 1}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <fieldset>
+                <legend className={LABEL}>{t("account.layoutHome")}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {HOME_TABS.map((tab) => (
+                    <label key={tab} className="flex cursor-pointer items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-text has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
+                      <input type="radio" name="homeTab" value={tab} defaultChecked={prefs.homeTab === tab} className="accent-accent-bright" />
+                      {t(`nav.${tab}` as TranslationKey)}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div>
+                <label htmlFor="defaultThreshold" className={LABEL}>{t("account.layoutThreshold")}</label>
+                <input
+                  id="defaultThreshold"
+                  name="defaultThreshold"
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.1}
+                  defaultValue={prefs.defaultThreshold}
+                  className={INPUT}
+                />
+                <p className="mt-1.5 text-xs text-text-subtle">{t("account.layoutThresholdHint")}</p>
+              </div>
+            </div>
+            <SubmitButton className={BUTTON_PRIMARY}>{t("account.save")}</SubmitButton>
+          </ActionForm>
+        </Card>
+
         <Card>
           <CardHeader title={t("account.securityTitle")} description={t("account.securityDescription")} />
           <ActionForm action={changePassword} className="space-y-4">
@@ -146,4 +232,6 @@ export default async function AccountPage() {
       </div>
     </Container>
   );
+
+  return user.role === "ADMIN" ? <I18nExtension messages={roleMessages}>{content}</I18nExtension> : content;
 }

@@ -14,6 +14,7 @@ import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { jakartaDate, jakartaWeekday } from "./dates";
 import { forwardOutcome } from "./forward";
 import { buildBrief, type BriefRow } from "./brief";
+import { dailyCreditCap, getAppSettings } from "@/lib/settings/server";
 import { buildCalendar } from "./calendar";
 
 /**
@@ -146,7 +147,7 @@ async function ensureRun(now: Date): Promise<MarketRun> {
     return await prisma.marketRun.create({
       data: {
         runDate,
-        creditCap: getEnv().AUTOMATION_DAILY_CREDIT_CAP,
+        creditCap: await dailyCreditCap(),
         items: { create: symbols.map((symbol, position) => ({ symbol, position })) },
       },
     });
@@ -159,8 +160,13 @@ async function ensureRun(now: Date): Promise<MarketRun> {
   }
 }
 
-/** Watched stocks first, most watched first, then the default universe. */
+/**
+ * Watched stocks first (most watched first), then the default universe. An
+ * admin can turn watched-first off, in which case the universe order leads
+ * and watched stocks not on it follow.
+ */
 async function queueOrder(): Promise<string[]> {
+  const { run } = await getAppSettings();
   const watched = await prisma.watchlistItem.groupBy({
     by: ["symbol"],
     where: { user: { emailVerifiedAt: { not: null } } },
@@ -183,7 +189,8 @@ async function queueOrder(): Promise<string[]> {
           .map((s) => normalizeSymbol(s))
           .filter((s): s is string => s !== null);
 
-  return [...new Set([...watched.map((w) => w.symbol), ...universe])];
+  const watchedSymbols = watched.map((w) => w.symbol);
+  return [...new Set(run.watchedFirst ? [...watchedSymbols, ...universe] : [...universe, ...watchedSymbols])];
 }
 
 async function claimNext(runId: string): Promise<RunItem | null> {
@@ -256,6 +263,14 @@ async function processItem(run: MarketRun, item: RunItem): Promise<void> {
       create: { symbol: item.symbol, runDate: run.runDate, ...fields },
       update: fields,
     });
+
+    // The ticker list learns each stock's sector from its analysis, so the
+    // sector filter grows with coverage at no extra credit.
+    if (result.sector) {
+      await prisma.companyDirectoryEntry
+        .updateMany({ where: { symbol: item.symbol }, data: { sector: result.sector } })
+        .catch(() => undefined);
+    }
 
     await resolveEarlierSignals(item.symbol, run.runDate, shadow.series);
     await finishItem(run.id, item.id, "DONE", null, before);
@@ -387,7 +402,7 @@ async function sendBriefEmails(
 ): Promise<void> {
   if (snapshots.length === 0) return;
 
-  const brief = buildBrief(snapshots.map(toBriefRow));
+  const brief = buildBrief(snapshots.map(toBriefRow), 5, (await getAppSettings()).signals);
   const recipients = await prisma.user.findMany({
     where: { briefOptIn: true, emailVerifiedAt: { not: null } },
     include: { watchlistItems: true, holdings: true },
@@ -424,7 +439,7 @@ async function sendBriefEmails(
         runDate,
         brief,
         calendar,
-        briefUrl: `${origin}/brief`,
+        briefUrl: `${origin}/market`,
       });
       await sendMail({ to: user.email, subject, html, text });
     } catch (error) {

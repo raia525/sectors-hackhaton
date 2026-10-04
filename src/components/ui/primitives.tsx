@@ -65,16 +65,59 @@ export function PageHeader({
 export function Card({
   children,
   className = "",
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={`rounded-[var(--radius)] border border-border bg-surface p-6 shadow-[var(--shadow-card)] ${className}`}
     >
       {children}
     </section>
+  );
+}
+
+/**
+ * A card the reader can fold away. Native details/summary, so it needs no
+ * client code and keeps working with JavaScript off; open by default, since
+ * a collapsed panel is a choice the reader makes, not one made for them.
+ */
+export function CollapsibleCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details
+      open
+      className="group rounded-[var(--radius)] border border-border bg-surface shadow-[var(--shadow-card)]"
+    >
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-4 p-6 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block text-[16px] font-bold text-text">{title}</span>
+          {description ? (
+            <span className="mt-1 block text-sm text-text-muted">{description}</span>
+          ) : null}
+        </span>
+        <span
+          aria-hidden
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-text-muted transition-transform group-open:rotate-180"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </summary>
+      <div className="px-6 pb-6">{children}</div>
+    </details>
   );
 }
 

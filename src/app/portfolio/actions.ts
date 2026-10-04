@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
 import { normalizeSymbol } from "@/lib/sectors/endpoints";
 import { msg, type Message } from "@/lib/i18n/message";
+import { parsePreferences } from "@/lib/settings/user";
 
 /**
  * Watchlist mutations.
@@ -27,7 +28,7 @@ export interface ActionState {
 
 const addSchema = z.object({
   symbol: z.string().min(1),
-  zScoreThreshold: z.coerce.number().min(0.5).max(6).default(2),
+  zScoreThreshold: z.coerce.number().min(0.5).max(6).optional(),
   lots: z.coerce.number().int().min(0).max(1_000_000).optional(),
   avgPrice: z.coerce.number().min(0).max(10_000_000).optional(),
 });
@@ -41,7 +42,7 @@ export async function addToWatchlist(
 
   const parsed = addSchema.safeParse({
     symbol: formData.get("symbol"),
-    zScoreThreshold: formData.get("zScoreThreshold") || 2,
+    zScoreThreshold: formData.get("zScoreThreshold") || undefined,
     lots: formData.get("lots") || undefined,
     avgPrice: formData.get("avgPrice") || undefined,
   });
@@ -60,8 +61,16 @@ export async function addToWatchlist(
   });
   if (existing) return { error: msg("watchlist.action.alreadyTracked", { symbol }) };
 
+  // Added from elsewhere (the ticker list) there is no slider, so the
+  // user's own default threshold applies.
+  let threshold = parsed.data.zScoreThreshold;
+  if (threshold === undefined) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { preferences: true } });
+    threshold = parsePreferences(user?.preferences).defaultThreshold;
+  }
+
   await prisma.watchlistItem.create({
-    data: { userId, symbol, zScoreThreshold: parsed.data.zScoreThreshold },
+    data: { userId, symbol, zScoreThreshold: threshold },
   });
 
   // A position is optional; it exists only to express corporate action effects
@@ -79,7 +88,7 @@ export async function addToWatchlist(
     });
   }
 
-  revalidatePath("/watchlist");
+  revalidatePath("/portfolio", "layout");
   return { success: msg("watchlist.action.added", { symbol }) };
 }
 
@@ -97,16 +106,25 @@ export async function removeFromWatchlist(
   await prisma.watchlistItem.deleteMany({ where: { userId, symbol } });
   await prisma.holding.deleteMany({ where: { userId, symbol } });
 
-  revalidatePath("/watchlist");
+  revalidatePath("/portfolio", "layout");
   return { success: msg("watchlist.action.removed", { symbol }) };
 }
 
 const thresholdSchema = z.object({
   symbol: z.string(),
   zScoreThreshold: z.coerce.number().min(0.5).max(6),
+  notifyOnCorporateAction: z.boolean(),
+  notifyOnSmartMoney: z.boolean(),
+  lots: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  avgPrice: z.coerce.number().min(0).max(10_000_000).optional(),
 });
 
-export async function updateThreshold(
+/**
+ * Saves one watched stock's settings: its alert threshold, which kinds of
+ * alert it sends, and the position used to show corporate actions in rupiah.
+ * Clearing the position (zero or blank lots) removes it.
+ */
+export async function updateWatchItem(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
@@ -116,21 +134,41 @@ export async function updateThreshold(
   const parsed = thresholdSchema.safeParse({
     symbol: formData.get("symbol"),
     zScoreThreshold: formData.get("zScoreThreshold"),
+    notifyOnCorporateAction: formData.get("notifyOnCorporateAction") === "on",
+    notifyOnSmartMoney: formData.get("notifyOnSmartMoney") === "on",
+    lots: formData.get("lots") || undefined,
+    avgPrice: formData.get("avgPrice") || undefined,
   });
   if (!parsed.success) {
-    return { error: msg("watchlist.action.thresholdRange") };
+    return { error: msg("watchlist.action.checkValues") };
   }
 
   const symbol = normalizeSymbol(parsed.data.symbol);
   if (!symbol) return { error: msg("watchlist.action.unknownTicker") };
 
-  await prisma.watchlistItem.updateMany({
+  const updated = await prisma.watchlistItem.updateMany({
     where: { userId, symbol },
-    data: { zScoreThreshold: parsed.data.zScoreThreshold },
+    data: {
+      zScoreThreshold: parsed.data.zScoreThreshold,
+      notifyOnCorporateAction: parsed.data.notifyOnCorporateAction,
+      notifyOnSmartMoney: parsed.data.notifyOnSmartMoney,
+    },
   });
+  if (updated.count === 0) return { error: msg("watchlist.action.unknownTicker") };
 
-  revalidatePath("/watchlist");
-  return { success: msg("watchlist.action.thresholdUpdated") };
+  const { lots, avgPrice } = parsed.data;
+  if (lots && avgPrice) {
+    await prisma.holding.upsert({
+      where: { userId_symbol: { userId, symbol } },
+      create: { userId, symbol, lots, avgPrice },
+      update: { lots, avgPrice },
+    });
+  } else if (!lots) {
+    await prisma.holding.deleteMany({ where: { userId, symbol } });
+  }
+
+  revalidatePath("/portfolio", "layout");
+  return { success: msg("watchlist.action.saved", { symbol }) };
 }
 
 /** Turns the daily brief email on or off for the signed-in user only. */
@@ -142,7 +180,7 @@ export async function setBriefOptIn(formData: FormData): Promise<void> {
     where: { id: userId },
     data: { briefOptIn: formData.get("enabled") === "true" },
   });
-  revalidatePath("/watchlist");
+  revalidatePath("/portfolio", "layout");
 }
 
 export async function markNotificationsRead(): Promise<void> {
@@ -153,5 +191,5 @@ export async function markNotificationsRead(): Promise<void> {
     where: { userId, readAt: null },
     data: { readAt: new Date() },
   });
-  revalidatePath("/watchlist");
+  revalidatePath("/portfolio", "layout");
 }

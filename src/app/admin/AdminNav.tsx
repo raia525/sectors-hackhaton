@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** The admin sidebar links, with the current section highlighted. */
-export function AdminNav({ items }: { items: { href: string; label: string }[] }) {
+/**
+ * Sidebar links with the current one highlighted. The first item is the
+ * section's own page, matched exactly. Addresses and the label come in as
+ * props, so this client chunk holds none of its own.
+ */
+export function AdminNav({ items, label }: { items: { href: string; label: string }[]; label: string }) {
   const pathname = usePathname();
-  const isActive = (href: string) => (href === "/admin" ? pathname === href : pathname.startsWith(href));
+  const isActive = (href: string) => (href === items[0]?.href ? pathname === href : pathname.startsWith(href));
 
   return (
-    <nav aria-label="Admin">
+    <nav aria-label={label}>
       <ul className="flex gap-1 overflow-x-auto lg:flex-col">
         {items.map((item) => {
           const active = isActive(item.href);

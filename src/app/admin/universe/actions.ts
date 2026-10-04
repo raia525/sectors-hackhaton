@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { getEnv } from "@/lib/env";
 import { audit } from "@/lib/admin/audit";
+import { bulkAddMessage, parseSymbolList } from "@/lib/admin/symbols";
+import { addSymbols, moveSymbol, removeSymbol, toggleSymbol } from "@/lib/admin/symbol-list";
 import { normalizeSymbol } from "@/lib/sectors/endpoints";
 import { msg } from "@/lib/i18n/message";
 import type { FormState } from "@/lib/forms/state";
@@ -21,26 +23,28 @@ const done = (ok: FormState["ok"]): FormState => {
   return { ok };
 };
 
-async function nextPosition(): Promise<number> {
-  const last = await prisma.universeStock.findFirst({ orderBy: { position: "desc" } });
-  return (last?.position ?? -1) + 1;
-}
-
+/** Adds one code or a pasted list. */
 export async function addStock(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
-  const symbol = normalizeSymbol(String(formData.get("symbol") ?? ""));
-  if (!symbol) return { error: msg("search.invalidTicker") };
-  if (await prisma.universeStock.findUnique({ where: { symbol } })) {
-    return { error: msg("admin.universe.exists", { symbol }) };
-  }
+  const { symbols, invalid, tooMany } = parseSymbolList(String(formData.get("symbols") ?? ""));
+  if (symbols.length === 0) return { error: msg("admin.list.noneValid") };
 
+  const { added, alreadyListed } = await addSymbols("universe", symbols);
   const note = String(formData.get("note") ?? "").trim().slice(0, 120) || null;
-  await prisma.universeStock.create({ data: { symbol, note, position: await nextPosition() } });
-  await audit(admin, "universe.add", symbol);
+  if (note && added.length > 0) {
+    await prisma.universeStock.updateMany({ where: { symbol: { in: added } }, data: { note } });
+  }
+  await audit(admin, "universe.add", added.join(","));
 
-  // Not a refusal: the directory may simply be out of date.
-  const known = await prisma.companyDirectoryEntry.findUnique({ where: { symbol } }).catch(() => null);
-  return done(known ? msg("admin.universe.added", { symbol }) : msg("admin.universe.addedUnknown", { symbol }));
+  // Codes missing from the directory are kept (it may be out of date) but named.
+  const known = await prisma.companyDirectoryEntry
+    .findMany({ where: { symbol: { in: added } }, select: { symbol: true } })
+    .catch(() => []);
+  const unknown = added.filter((s) => !known.some((k) => k.symbol === s));
+  if (unknown.length > 0 && invalid.length === 0 && !tooMany) {
+    return done(msg("admin.universe.addedUnknown", { symbol: unknown.join(", ") }));
+  }
+  return done(bulkAddMessage({ added: added.length, alreadyListed: alreadyListed.length, invalid, tooMany }));
 }
 
 export async function importDefaults(): Promise<FormState> {
@@ -49,46 +53,42 @@ export async function importDefaults(): Promise<FormState> {
     .MARKET_UNIVERSE.split(",")
     .map((s) => normalizeSymbol(s))
     .filter((s): s is string => s !== null);
+  const { added } = await addSymbols("universe", symbols);
+  await audit(admin, "universe.import", added.join(","));
+  return done(msg("admin.universe.imported", { count: added.length }));
+}
 
-  let position = await nextPosition();
-  for (const symbol of symbols) {
-    await prisma.universeStock.upsert({
-      where: { symbol },
-      create: { symbol, position: position++ },
-      update: {},
-    });
-  }
-  await audit(admin, "universe.import", symbols.join(","));
-  return done(msg("admin.universe.imported", { count: symbols.length }));
+/** Adds the stocks most often watched by verified users, up to ten. */
+export async function addMostWatched(): Promise<FormState> {
+  const admin = await requireAdmin();
+  const watched = await prisma.watchlistItem.groupBy({
+    by: ["symbol"],
+    where: { user: { emailVerifiedAt: { not: null } } },
+    _count: { symbol: true },
+    orderBy: { _count: { symbol: "desc" } },
+    take: 10,
+  });
+  const { added } = await addSymbols("universe", watched.map((w) => w.symbol));
+  await audit(admin, "universe.addWatched", added.join(","));
+  return done(msg("admin.universe.addedWatched", { count: added.length }));
 }
 
 export async function updateStock(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const symbol = String(formData.get("symbol") ?? "");
   const intent = String(formData.get("intent") ?? "");
-  const row = await prisma.universeStock.findUnique({ where: { symbol } });
-  if (!row) return { error: msg("admin.error.notFound") };
 
-  if (intent === "toggle") {
-    await prisma.universeStock.update({ where: { symbol }, data: { isActive: !row.isActive } });
-  } else if (intent === "up" || intent === "down") {
-    // Swap places with the neighbour in that direction.
-    const neighbour = await prisma.universeStock.findFirst({
-      where: { position: intent === "up" ? { lt: row.position } : { gt: row.position } },
-      orderBy: { position: intent === "up" ? "desc" : "asc" },
-    });
-    if (neighbour) {
-      await prisma.$transaction([
-        prisma.universeStock.update({ where: { symbol }, data: { position: neighbour.position } }),
-        prisma.universeStock.update({ where: { symbol: neighbour.symbol }, data: { position: row.position } }),
-      ]);
-    }
-  } else if (intent === "note") {
+  let ok = false;
+  if (intent === "toggle") ok = await toggleSymbol("universe", symbol);
+  else if (intent === "up" || intent === "down") ok = await moveSymbol("universe", symbol, intent);
+  else if (intent === "move") ok = await moveSymbol("universe", symbol, Number(formData.get("position")));
+  else if (intent === "note") {
     const note = String(formData.get("note") ?? "").trim().slice(0, 120) || null;
-    await prisma.universeStock.update({ where: { symbol }, data: { note } });
+    ok = (await prisma.universeStock.updateMany({ where: { symbol }, data: { note } })).count === 1;
   } else {
     return { error: msg("admin.error.invalid") };
   }
+  if (!ok) return { error: msg("admin.error.notFound") };
 
   await audit(admin, `universe.${intent}`, symbol);
   return done(msg("admin.saved"));
@@ -97,8 +97,7 @@ export async function updateStock(_prev: FormState, formData: FormData): Promise
 export async function removeStock(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const symbol = String(formData.get("symbol") ?? "");
-  const row = await prisma.universeStock.delete({ where: { symbol } }).catch(() => null);
-  if (!row) return { error: msg("admin.error.notFound") };
+  if (!(await removeSymbol("universe", symbol))) return { error: msg("admin.error.notFound") };
   await audit(admin, "universe.remove", symbol);
   return done(msg("admin.deleted"));
 }

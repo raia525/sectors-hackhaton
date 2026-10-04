@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n/client";
 import { IconClose } from "./ui/icons";
 
 /**
- * Admin announcements, shown above the header.
+ * Site announcements, shown above the header.
  *
  * Filtered by audience here (the schedule was already applied on the
  * server). A dismissal is remembered per announcement in localStorage, read

@@ -15,7 +15,7 @@ const PendingContext = createContext(false);
  *
  * It submits from onSubmit rather than through the form's `action` prop on
  * purpose: React resets a form after every `action` submission, including
- * one the server refused, which threw away everything an admin had typed
+ * one the server refused, which threw away everything the person had typed
  * the moment one field was wrong. Here the fields are kept on an error and
  * reset only on success, which also shows edit forms their saved values.
  *

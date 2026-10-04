@@ -40,6 +40,9 @@ model User {
   /// "Sign out everywhere": a session issued before this is rejected, the
   /// same mechanism as passwordChangedAt but without changing the password.
   sessionsRevokedAt DateTime?
+  /// Personal settings (analysis panel layout, defaults), read through the
+  /// Zod schema in src/lib/settings/user.ts so a bad value falls back.
+  preferences       Json?
   createdAt         DateTime  @default(now())
 
   watchlistItems WatchlistItem[]
@@ -47,6 +50,7 @@ model User {
   notifications  Notification[]
   authTokens     AuthToken[]
   loginOtps      LoginOtp[]
+  chatThreads    ChatThread[]
 
   @@map("users")
 }
@@ -318,9 +322,13 @@ model SignalSnapshot {
 model CompanyDirectoryEntry {
   symbol      String   @id
   companyName String
+  /// Null until known. Filled from analyses already stored, so the ticker
+  /// list says how many sectors it knows rather than implying full coverage.
+  sector      String?
   updatedAt   DateTime @updatedAt
 
   @@index([companyName])
+  @@index([sector])
   @@map("company_directory")
 }
 
@@ -436,4 +444,61 @@ model AdminAuditLog {
 
   @@index([createdAt])
   @@map("admin_audit_log")
+}
+
+/// App wide settings, one row per group. The value is parsed by the Zod
+/// schemas in src/lib/settings/app.ts, which fill in defaults and refuse
+/// signal bounds looser than the shipped ones.
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+/// The tickers scrolling on the landing page. With no active row the
+/// built-in list in TickerMarquee.tsx is shown.
+model TickerStripItem {
+  symbol    String   @id
+  position  Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("ticker_strip")
+}
+
+/// A chatbot conversation. Deleted with its user.
+model ChatThread {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("chat_threads")
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model ChatMessage {
+  id               String     @id @default(cuid())
+  threadId         String
+  role             ChatRole
+  content          String
+  /// Token usage reported by the model for this reply, for the admin view.
+  promptTokens     Int?
+  completionTokens Int?
+  createdAt        DateTime   @default(now())
+  thread           ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([createdAt])
+  @@map("chat_messages")
 }

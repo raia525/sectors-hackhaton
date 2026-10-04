@@ -28,7 +28,7 @@ function divergenceTone(verdict: string) {
 function StockCell({ row }: { row: BriefRow }) {
   return (
     <div className="min-w-0">
-      <Link href={`/?symbol=${row.symbol}`} className="font-bold text-text hover:text-accent">
+      <Link href={`/stocks?symbol=${row.symbol}`} className="font-bold text-text hover:text-accent">
         {row.symbol}
       </Link>
       <div className="max-w-[200px] truncate text-xs text-text-subtle">{row.companyName}</div>
@@ -227,7 +227,7 @@ export function CalendarList({ entries, t, tm }: { entries: CalendarEntry[]; t: 
           <div className="tnum w-24 shrink-0 text-sm font-semibold text-text">{item.date}</div>
           <div className="min-w-0">
             <div className="text-sm text-text">
-              <Link href={`/?symbol=${symbol}`} className="font-bold hover:text-accent">
+              <Link href={`/stocks?symbol=${symbol}`} className="font-bold hover:text-accent">
                 {symbol}
               </Link>{" "}
               {tm(item.summary)}

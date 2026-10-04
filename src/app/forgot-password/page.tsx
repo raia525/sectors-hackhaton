@@ -8,7 +8,7 @@ export const metadata = { title: "Reset password | SHADOW IDX" };
 export const dynamic = "force-dynamic";
 
 export default async function ForgotPasswordPage() {
-  if (await getSessionUserId()) redirect("/watchlist");
+  if (await getSessionUserId()) redirect("/");
   const { t } = await getTranslator();
 
   return (

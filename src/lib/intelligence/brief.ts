@@ -1,4 +1,4 @@
-import { FIT_FLOOR, isSignal, MIN_PEERS } from "./track-record";
+import { isSignal, SHIPPED_BARS, type Bars } from "./track-record";
 
 /**
  * The daily market brief, built from the day's stored analyses.
@@ -69,18 +69,21 @@ export interface Brief {
   unreliable: BriefRow[];
 }
 
-export function isReliable(row: Pick<BriefRow, "fitQuality" | "constituentCount">): boolean {
-  return row.fitQuality >= FIT_FLOOR && row.constituentCount >= MIN_PEERS;
+export function isReliable(
+  row: Pick<BriefRow, "fitQuality" | "constituentCount">,
+  bars: Bars = SHIPPED_BARS,
+): boolean {
+  return row.fitQuality >= bars.fitFloor && row.constituentCount >= bars.minPeers;
 }
 
-export function buildBrief(rows: BriefRow[], limit = 5): Brief {
-  const reliableRows = rows.filter(isReliable);
+export function buildBrief(rows: BriefRow[], limit = 5, bars: Bars = SHIPPED_BARS): Brief {
+  const reliableRows = rows.filter((r) => isReliable(r, bars));
   const byDivergence = [...reliableRows].sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
 
   return {
     covered: rows.length,
     reliable: reliableRows.length,
-    signalCount: reliableRows.filter(isSignal).length,
+    signalCount: reliableRows.filter((r) => isSignal(r, bars)).length,
     movers: byDivergence.slice(0, limit),
     disagreements: byDivergence
       .filter((r) => DISAGREEMENT_VERDICTS.has(r.realityVerdict))
@@ -94,12 +97,12 @@ export function buildBrief(rows: BriefRow[], limit = 5): Brief {
       )
       .sort((a, b) => (b.smartMoneyConviction ?? 0) - (a.smartMoneyConviction ?? 0))
       .slice(0, limit),
-    ...buildSectors(reliableRows),
-    unreliable: rows.filter((r) => !isReliable(r)),
+    ...buildSectors(reliableRows, bars),
+    unreliable: rows.filter((r) => !isReliable(r, bars)),
   };
 }
 
-function buildSectors(rows: BriefRow[]): {
+function buildSectors(rows: BriefRow[], bars: Bars): {
   sectors: SectorRow[];
   singleStockSectors: string[];
 } {
@@ -130,7 +133,7 @@ function buildSectors(rows: BriefRow[]): {
       avgMarket: mean((r) => r.marketReturn),
       avgSector: mean((r) => r.sectorReturn),
       avgIdio: mean((r) => r.idioReturn),
-      signalCount: group.filter(isSignal).length,
+      signalCount: group.filter((r) => isSignal(r, bars)).length,
     });
   }
 

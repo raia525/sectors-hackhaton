@@ -1,4 +1,4 @@
-import { en, id, type TranslationKey } from "./dictionary";
+import { en, id, type PublicKey, type TranslationKey } from "./dictionary";
 import type { Locale } from "./locales";
 
 /**
@@ -13,11 +13,16 @@ import type { Locale } from "./locales";
  * never to a blank label or a crashed page.
  */
 
-const DICTIONARIES: Record<Locale, Record<TranslationKey, string>> = { en, id };
+// Keyed loosely on purpose: a key served from a server-only module is
+// looked up here too, and found in the overrides passed in.
+const DICTIONARIES: Record<Locale, Partial<Record<string, string>>> = { en, id } satisfies Record<
+  Locale,
+  Record<PublicKey, string>
+>;
 
 export type FlatParams = Record<string, string | number>;
 
-/** Admin edits for one language, keyed by translation key (see src/lib/admin/content.ts). */
+/** Edited strings for one language, keyed by translation key. */
 export type Overrides = Partial<Record<string, string>>;
 
 export function translate(

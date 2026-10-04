@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cronAuth";
 import { getEnv } from "@/lib/env";
 import { recordContinuation, runPipelineStep } from "@/lib/intelligence/pipeline";
+import { getAppSettings } from "@/lib/settings/server";
 
 /**
  * The daily run: analyse the day's stocks, then send alerts and briefs.
@@ -32,11 +33,17 @@ export async function POST(request: Request) {
   return handle(request);
 }
 
-function handle(request: Request) {
+async function handle(request: Request) {
   if (!isCronAuthorized(request)) {
     // Deliberately unspecific: a detailed message would help an attacker
     // distinguish a missing header from a wrong secret.
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Switched off in Admin > Settings: no new step starts, so no credit is
+  // spent. A run already under way stops where it is.
+  if (!(await getAppSettings()).run.enabled) {
+    return NextResponse.json({ ok: true, skipped: "disabled" });
   }
 
   const url = new URL(request.url);

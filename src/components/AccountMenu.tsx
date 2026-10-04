@@ -9,17 +9,33 @@ import { IconShield, IconUser } from "./ui/icons";
 export interface AccountSummary {
   name: string | null;
   email: string;
-  isAdmin: boolean;
 }
 
 /**
- * The signed-in user's menu: who is signed in, their profile, the admin
- * panel for admins, and sign out.
+ * An extra menu entry the server may add for this user. A prop, so this
+ * shared code carries no address or label of its own.
+ */
+export interface ExtraLink {
+  href: string;
+  label: string;
+}
+
+/**
+ * The signed-in user's menu: who is signed in, their profile, any extra
+ * entry the server adds, and sign out.
  *
  * Sign out is a form posting to the server action, so it works before the
  * page's script has loaded and is never a link a crawler could follow.
  */
-export function AccountMenu({ account, compact }: { account: AccountSummary; compact: boolean }) {
+export function AccountMenu({
+  account,
+  extraLink,
+  compact,
+}: {
+  account: AccountSummary;
+  extraLink: ExtraLink | null;
+  compact: boolean;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -70,9 +86,9 @@ export function AccountMenu({ account, compact }: { account: AccountSummary; com
             <MenuLink href="/account" icon={<IconUser size={16} />} onNavigate={() => setOpen(false)}>
               {t("account.profile")}
             </MenuLink>
-            {account.isAdmin ? (
-              <MenuLink href="/admin" icon={<IconShield size={16} />} onNavigate={() => setOpen(false)}>
-                {t("account.adminPanel")}
+            {extraLink ? (
+              <MenuLink href={extraLink.href} icon={<IconShield size={16} />} onNavigate={() => setOpen(false)}>
+                {extraLink.label}
               </MenuLink>
             ) : null}
             <form action={signOut}>

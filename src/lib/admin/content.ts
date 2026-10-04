@@ -1,4 +1,4 @@
-import { en, type TranslationKey } from "@/lib/i18n/dictionary";
+import { en, type PublicKey } from "@/lib/i18n/dictionary";
 
 /**
  * Which strings an admin may override, and what makes an override valid.
@@ -8,13 +8,13 @@ import { en, type TranslationKey } from "@/lib/i18n/dictionary";
  * how the engines explain their own limits and must stay as written.
  */
 
-export const EDITABLE_KEYS: readonly TranslationKey[] = (Object.keys(en) as TranslationKey[]).filter(
+export const EDITABLE_KEYS: readonly PublicKey[] = (Object.keys(en) as PublicKey[]).filter(
   (key) => key.startsWith("landing.") || key === "home.description" || key === "brand.tagline",
 );
 
 const EDITABLE = new Set<string>(EDITABLE_KEYS);
 
-export function isEditableKey(key: string): key is TranslationKey {
+export function isEditableKey(key: string): key is PublicKey {
   return EDITABLE.has(key);
 }
 
@@ -38,7 +38,7 @@ export type OverrideCheck =
  * (a ticker count, a step number) would silently vanish from the page. An em
  * dash is refused because the interface is written without them.
  */
-export function checkOverride(key: TranslationKey, raw: string): OverrideCheck {
+export function checkOverride(key: PublicKey, raw: string): OverrideCheck {
   const value = raw.trim();
   if (value.length === 0) return { ok: false, problem: "empty" };
   if (value.length > MAX_OVERRIDE_LENGTH) return { ok: false, problem: "tooLong" };

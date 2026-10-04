@@ -38,7 +38,7 @@ export function I18nProvider({
   children,
 }: {
   initialLocale: Locale;
-  /** Admin edits to landing copy, for both languages so a switch needs no refetch. */
+  /** Edited landing copy, for both languages so a switch needs no refetch. */
   overrides: Record<Locale, Overrides>;
   children: React.ReactNode;
 }) {
@@ -67,6 +67,34 @@ export function I18nProvider({
 
   const tm = useCallback((message: Message) => renderMessage(message, t), [t]);
 
+  const value = useMemo(() => ({ locale, t, tm, setLocale }), [locale, t, tm, setLocale]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+/**
+ * Adds strings to the translator for one part of the page. They arrive as a
+ * prop in that page's own server response rather than in the shared bundle
+ * (see AGENTS.md).
+ */
+export function I18nExtension({
+  messages,
+  children,
+}: {
+  messages: Record<Locale, Overrides>;
+  children: React.ReactNode;
+}) {
+  const parent = useContext(I18nContext);
+  if (!parent) throw new Error("I18nExtension must be used inside I18nProvider.");
+  const { locale, setLocale } = parent;
+  const parentT = parent.t;
+
+  const t = useCallback(
+    (key: TranslationKey, params?: FlatParams) =>
+      messages[locale][key] !== undefined ? translate(locale, key, params, messages[locale]) : parentT(key, params),
+    [locale, messages, parentT],
+  );
+  const tm = useCallback((message: Message) => renderMessage(message, t), [t]);
   const value = useMemo(() => ({ locale, t, tm, setLocale }), [locale, t, tm, setLocale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

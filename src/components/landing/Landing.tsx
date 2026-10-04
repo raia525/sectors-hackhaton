@@ -157,7 +157,7 @@ export async function Landing() {
         </div>
       </section>
 
-      <TickerMarquee label={t("landing.marqueeLabel")} />
+      <TickerMarquee label={t("landing.marqueeLabel")} moveCaption={(date) => t("landing.marqueeMoveCaption", { date })} />
 
       {/* Statement */}
       <Container className="py-16 text-center lg:py-20">

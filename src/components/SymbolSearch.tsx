@@ -34,7 +34,7 @@ export function SymbolSearch({ initialSymbol }: { initialSymbol?: string }) {
 
     setError(null);
     startTransition(() => {
-      router.push(`/?symbol=${symbol}`);
+      router.push(`/stocks?symbol=${symbol}`);
     });
   };
 

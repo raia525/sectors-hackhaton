@@ -7,15 +7,19 @@ import { useTranslation } from "@/lib/i18n/client";
 import { ThemeToggle } from "./ThemeToggle";
 import { LanguageToggle } from "./LanguageToggle";
 import { BrandMark } from "./ui/Logo";
-import { AccountMenu, type AccountSummary } from "./AccountMenu";
+import { AccountMenu, type AccountSummary, type ExtraLink } from "./AccountMenu";
 import { IconChevronRight, IconClose, IconMenu } from "./ui/icons";
 import type { TranslationKey } from "@/lib/i18n/dictionary";
 
+/**
+ * Three sections, each with its own tabs (src/components/SectionTabs.tsx):
+ * Market (summary, sectors, track record), Stocks (analyse, compare, ticker
+ * list) and Portfolio (watchlist, alerts, calendar).
+ */
 const NAV: { href: string; key: TranslationKey }[] = [
-  { href: "/", key: "nav.analyse" },
-  { href: "/brief", key: "nav.brief" },
-  { href: "/compare", key: "nav.compare" },
-  { href: "/watchlist", key: "nav.watchlist" },
+  { href: "/market", key: "nav.market" },
+  { href: "/stocks", key: "nav.stocks" },
+  { href: "/portfolio", key: "nav.portfolio" },
 ];
 
 /** Scroll distance before the header detaches and floats. */
@@ -43,7 +47,7 @@ type Mode = "static" | "expanded" | "minimized";
  * Returning to the top of the page resets a minimized header, so the next
  * time it floats it starts expanded again.
  */
-export function SiteHeader({ account }: { account: AccountSummary }) {
+export function SiteHeader({ account, extraLink }: { account: AccountSummary; extraLink: ExtraLink | null }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -86,8 +90,7 @@ export function SiteHeader({ account }: { account: AccountSummary }) {
     nav.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
   }, [mode, pathname]);
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header
@@ -148,7 +151,7 @@ export function SiteHeader({ account }: { account: AccountSummary }) {
           {/* Hidden when minimized, which keeps only the page, language and theme. */}
           {mode === "minimized" ? null : (
             <span className={floating ? "hidden sm:contents" : "contents"}>
-              <AccountMenu account={account} compact={floating} />
+              <AccountMenu account={account} extraLink={extraLink} compact={floating} />
             </span>
           )}
 

@@ -6,7 +6,9 @@ import { GuestHeader } from "@/components/GuestHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SkipLink } from "@/components/SkipLink";
 import { I18nProvider } from "@/lib/i18n/client";
-import { getLocale } from "@/lib/i18n/server";
+import { getTranslator, getLocale } from "@/lib/i18n/server";
+import { chatAvailable } from "@/lib/settings/server";
+import { ChatWidget } from "@/components/ChatWidget";
 import { getCurrentUser } from "@/lib/auth";
 import { getSiteSettings } from "@/lib/brand/settings";
 import { BrandProvider } from "@/components/ui/Logo";
@@ -38,10 +40,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [locale, user, settings] = await Promise.all([
+  const [locale, user, settings, { t }, chat] = await Promise.all([
     getLocale(),
     getCurrentUser(),
     getSiteSettings(),
+    getTranslator(),
+    chatAvailable(),
   ]);
 
   return (
@@ -74,7 +78,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <SkipLink />
           <AnnouncementBar announcements={settings.announcements} signedIn={user !== null} />
           {/*
-            The app's menu (Analyse, Brief, Compare, Watchlist) only makes
+            The app's menu (Market, Stocks, Portfolio) only makes
             sense once there is an account behind it: every one of those
             routes redirects a signed-out visitor to /signin anyway (see
             src/proxy.ts). A signed-out visitor sees only the landing page
@@ -84,7 +88,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           */}
           {user ? (
             <SiteHeader
-              account={{ name: user.name, email: user.email, isAdmin: user.role === "ADMIN" }}
+              account={{ name: user.name, email: user.email }}
+              // The admin link, its address and its label are sent only to an
+              // admin; nothing in the shared client code names the panel.
+              extraLink={user.role === "ADMIN" ? { href: "/admin", label: t("account.adminPanel") } : null}
             />
           ) : (
             <GuestHeader />
@@ -93,6 +100,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
           <SiteFooter />
+          {user && chat ? <ChatWidget /> : null}
           </BrandProvider>
         </I18nProvider>
       </body>

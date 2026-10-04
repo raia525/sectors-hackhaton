@@ -12,7 +12,7 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ verified?: string; reset?: string; next?: string }>;
 }) {
-  if (await getSessionUserId()) redirect("/watchlist");
+  if (await getSessionUserId()) redirect("/");
   const { t } = await getTranslator();
   const { verified, reset, next } = await searchParams;
 

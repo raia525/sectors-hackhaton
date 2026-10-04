@@ -1,5 +1,5 @@
 /**
- * Form styles shared by the account and admin pages. A plain module, not a
+ * Form styles shared by the account and settings pages. A plain module, not a
  * "use client" one, so server components can use the strings directly.
  */
 

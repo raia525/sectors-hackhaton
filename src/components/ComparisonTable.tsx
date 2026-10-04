@@ -78,7 +78,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
                 <tr key={row.symbol} className={`border-b border-border last:border-0 ${row === ranked[0] ? "bg-accent-soft" : ""}`}>
                   <td className="py-3.5 pl-3 pr-3">
                     <Link
-                      href={`/?symbol=${row.symbol}`}
+                      href={`/stocks?symbol=${row.symbol}`}
                       className="font-bold text-text hover:text-accent"
                     >
                       {row.symbol}
@@ -131,7 +131,7 @@ export function ComparisonTable({ result }: { result: ComparisonResult }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
-                    href={`/?symbol=${row.symbol}`}
+                    href={`/stocks?symbol=${row.symbol}`}
                     className="font-medium text-text hover:text-accent"
                   >
                     {row.symbol}
