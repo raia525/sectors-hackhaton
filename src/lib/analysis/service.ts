@@ -23,6 +23,7 @@ import {
   type Position,
 } from "./corporate-actions";
 import { analyzeSeasonality, type SeasonalityResult } from "./seasonality";
+import { marketFacts, type MarketFacts } from "./market-facts";
 import { buildKeyStats, type KeyStats } from "./key-stats";
 import { analyzeSmartMoney } from "@/lib/smartmoney/engine";
 import type { SmartMoneySignal } from "@/lib/smartmoney/types";
@@ -53,6 +54,8 @@ export interface AnalysisResult {
   realityCheck: RealityCheck;
   news: NewsItem[];
   keyStats: KeyStats;
+  /** Latest session's price and volume facts, from the bars already fetched. */
+  marketFacts: MarketFacts;
   seasonality: SeasonalityResult;
   corporateActions: CorporateActionItem[];
   /** Cash due from upcoming dividends, when the user holds a position. */
@@ -214,6 +217,7 @@ export async function analyzeSymbol(
     realityCheck: runRealityCheck(shadow, news),
     news,
     keyStats: buildKeyStats(targetReport, targetBars),
+    marketFacts: marketFacts(targetBars),
     seasonality: analyzeSeasonality(targetBars),
     corporateActions,
     upcomingIncomeIdr: options.position ? upcomingIncome(corporateActions) : null,

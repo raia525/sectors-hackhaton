@@ -3,9 +3,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getTranslator } from "@/lib/i18n/server";
 import { loadPortfolio } from "@/lib/intelligence/portfolio";
-import { concludePortfolio } from "@/lib/intelligence/summary";
-import { isSignal } from "@/lib/intelligence/track-record";
+import { concludePortfolio, concludeStock } from "@/lib/intelligence/summary";
+import { readStoredAnalysis } from "@/lib/intelligence/watch-facts";
 import { getSignalBars } from "@/lib/settings/server";
+import { metricValue, METRICS, suggestRules, type Metric } from "@/lib/notifications/custom-rules";
+import { REALITY_COPY, SMART_MONEY_COPY } from "@/components/verdictCopy";
+import type { StockDetail } from "@/components/WatchlistDetail";
 import { parsePreferences } from "@/lib/settings/user";
 import { WatchlistManager } from "@/components/WatchlistManager";
 import { ConclusionBlock, TONE_KEY } from "@/components/ConclusionBlock";
@@ -41,6 +44,11 @@ export default async function PortfolioPage() {
         tone={conclusion.tone}
         headline={tm(conclusion.headline)}
         points={conclusion.points.map((p) => tm(p))}
+        footnote={
+          portfolio.facts.asOf
+            ? t("conclusion.portfolio.footnote", { date: portfolio.facts.asOf })
+            : undefined
+        }
       />
 
       <Card>
@@ -49,7 +57,68 @@ export default async function PortfolioPage() {
           defaultThreshold={preferences.defaultThreshold}
           items={portfolio.items.map((item) => {
             const holding = portfolio.holdingBySymbol.get(item.symbol);
-            const latest = portfolio.latestBySymbol.get(item.symbol);
+            const stock = portfolio.stocks.get(item.symbol);
+            const facts = stock?.facts ?? null;
+
+            let detail: StockDetail | null = null;
+            if (stock && facts) {
+              const stored = readStoredAnalysis(stock.caveats);
+              const upcoming = stock.actions
+                .filter((x) => x.timing === "upcoming")
+                .sort((x, y) => x.date.localeCompare(y.date));
+              const c = concludeStock(
+                {
+                  symbol: item.symbol,
+                  sessions: stored.fitWindow ?? 0,
+                  zScore: facts.zScore,
+                  fitQuality: facts.fitQuality,
+                  peers: facts.peers,
+                  total: facts.total,
+                  market: facts.market,
+                  sector: facts.sector,
+                  idio: facts.idio,
+                  realityVerdict: facts.realityVerdict,
+                  upcoming: upcoming.map((x) => ({ kind: x.kind, date: x.date })),
+                },
+                bars,
+              );
+              const reality = REALITY_COPY[facts.realityVerdict as keyof typeof REALITY_COPY];
+              const smart = facts.smartMoneyType
+                ? SMART_MONEY_COPY[facts.smartMoneyType as keyof typeof SMART_MONEY_COPY]
+                : undefined;
+              detail = {
+                runDate: facts.runDate,
+                conclusion: {
+                  tone: c.tone,
+                  toneLabel: t(TONE_KEY[c.tone]),
+                  headline: tm(c.headline),
+                  points: c.points.map((p) => tm(p)),
+                },
+                split: {
+                  total: facts.total,
+                  market: facts.market,
+                  sector: facts.sector,
+                  idio: facts.idio,
+                  z: facts.zScore,
+                  fit: facts.fitQuality,
+                  peers: facts.peers,
+                },
+                news: reality ? t(reality.labelKey) : facts.realityVerdict,
+                smartMoney: smart
+                  ? `${t(smart.labelKey)}. ${t(smart.meaningKey)}`
+                  : null,
+                prices: facts.prices,
+                keyStats: facts.keyStats,
+                actions: stock.actions,
+                hasPosition: Boolean(holding),
+                caveats: stored.caveats.map((m) => tm(m)),
+              };
+            }
+
+            const current: Partial<Record<Metric, number | null>> = facts
+              ? Object.fromEntries(METRICS.map((m) => [m, metricValue(facts, m)]))
+              : {};
+
             return {
               symbol: item.symbol,
               zScoreThreshold: item.zScoreThreshold,
@@ -57,9 +126,24 @@ export default async function PortfolioPage() {
               notifyOnSmartMoney: item.notifyOnSmartMoney,
               lastNotifiedAt: item.lastNotifiedAt?.toISOString() ?? null,
               holding: holding ? { lots: holding.lots, avgPrice: holding.avgPrice } : null,
-              latest: latest
-                ? { zScore: latest.zScore, runDate: latest.runDate, signal: isSignal(latest, bars) }
-                : null,
+              latest: facts && stock ? { zScore: facts.zScore, runDate: facts.runDate, signal: stock.isSignal } : null,
+              detail,
+              rules: item.rules.map((r) => ({
+                id: r.id,
+                metric: r.metric,
+                operator: r.operator,
+                value: r.value,
+                enabled: r.enabled,
+                autoTune: r.autoTune,
+                preset: r.preset,
+                note: r.note,
+                lastMet: r.lastMet,
+                lastValue: r.lastValue,
+                lastTriggeredAt: r.lastTriggeredAt?.toISOString() ?? null,
+                tunedAt: r.tunedAt?.toISOString() ?? null,
+              })),
+              suggestions: facts ? suggestRules(facts, bars.signalZ) : [],
+              current,
             };
           })}
         />

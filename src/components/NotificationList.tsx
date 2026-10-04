@@ -29,6 +29,7 @@ const KIND_COPY: Record<string, { key: TranslationKey; tone: BadgeTone }> = {
   DIVERGENCE: { key: "watchlist.kind.divergence", tone: "significant" },
   CORPORATE_ACTION: { key: "watchlist.kind.corporateAction", tone: "accent" },
   SMART_MONEY: { key: "watchlist.kind.smartMoney", tone: "extreme" },
+  RULE: { key: "watchlist.kind.rule", tone: "moderate" },
 };
 
 export function NotificationList({

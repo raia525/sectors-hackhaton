@@ -15,6 +15,7 @@ import { jakartaDate, jakartaWeekday } from "./dates";
 import { forwardOutcome } from "./forward";
 import { buildBrief, type BriefRow } from "./brief";
 import { dailyCreditCap, getAppSettings } from "@/lib/settings/server";
+import { readSnapshotFacts } from "./watch-facts";
 import { buildCalendar } from "./calendar";
 
 /**
@@ -256,6 +257,8 @@ async function processItem(run: MarketRun, item: RunItem): Promise<void> {
       smartMoneyConviction: smartMoney?.conviction ?? null,
       analysis: toJson({ shadow, realityCheck, smartMoney }),
       corporateActions: corporateActions === null ? Prisma.JsonNull : toJson(corporateActions),
+      keyStats: toJson(result.keyStats),
+      marketFacts: toJson(result.marketFacts),
     };
 
     await prisma.signalSnapshot.upsert({
@@ -362,10 +365,10 @@ async function deliverOnce(runId: string, now: Date, origin: string): Promise<bo
   const analyses = new Map<string, StoredAnalysis>();
   for (const s of snapshots) {
     const stored = s.analysis as unknown as Pick<StoredAnalysis, "shadow" | "realityCheck">;
-    analyses.set(s.symbol, { ...stored, corporateActions: s.corporateActions });
+    analyses.set(s.symbol, { ...stored, corporateActions: s.corporateActions, facts: readSnapshotFacts(s) });
   }
 
-  await deliverAlerts(analyses, now);
+  await deliverAlerts(analyses, now, (await getAppSettings()).signals.signalZ);
   await sendBriefEmails(run.runDate, snapshots, now, origin);
 
   await prisma.marketRun.update({

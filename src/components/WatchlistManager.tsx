@@ -10,6 +10,9 @@ import {
 } from "@/app/portfolio/actions";
 import { SymbolCombobox, type DirectoryMatch } from "./SymbolCombobox";
 import { useTranslation } from "@/lib/i18n/client";
+import type { Metric, Suggestion } from "@/lib/notifications/custom-rules";
+import { WatchlistDetail, type StockDetail } from "./WatchlistDetail";
+import { AlertRulesEditor, type RuleView } from "./AlertRulesEditor";
 
 /**
  * Watchlist management.
@@ -29,6 +32,10 @@ interface Item {
   holding: { lots: number; avgPrice: number } | null;
   /** The latest stored analysis, if the daily run has reached this stock. */
   latest: { zScore: number; runDate: string; signal: boolean } | null;
+  detail: StockDetail | null;
+  rules: RuleView[];
+  suggestions: Suggestion[];
+  current: Partial<Record<Metric, number | null>>;
 }
 
 const INITIAL: ActionState = {};
@@ -136,6 +143,8 @@ function WatchlistRow({ item }: { item: Item }) {
   const [removeState, removeAction, removePending] = useActionState(removeFromWatchlist, INITIAL);
   const [updateState, updateAction, updatePending] = useActionState(updateWatchItem, INITIAL);
   const id = item.symbol.toLowerCase();
+  const [expanded, setExpanded] = useState(false);
+  const activeRules = item.rules.filter((r) => r.enabled).length;
 
   return (
     <li className="rounded-[var(--radius-sm)] border border-border bg-surface-raised p-3">
@@ -170,8 +179,19 @@ function WatchlistRow({ item }: { item: Item }) {
                   price: item.holding.avgPrice.toLocaleString("id-ID"),
                 })}`
               : ""}
+            {activeRules > 0 ? ` · ${t("watchlist.rulesActive", { count: activeRules })}` : ""}
             {item.lastNotifiedAt ? ` · ${t("watchlist.lastAlert", { date: item.lastNotifiedAt.slice(0, 10) })}` : ""}
           </p>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            aria-expanded={expanded}
+            aria-controls={`detail-${id}`}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-text transition-colors hover:border-accent hover:text-accent"
+          >
+            <span aria-hidden className={`nav-anim inline-block ${expanded ? "rotate-90" : ""}`}>›</span>
+            {expanded ? t("watchlist.collapse") : t("watchlist.expand")}
+          </button>
         </div>
 
         <form action={removeAction}>
@@ -186,10 +206,11 @@ function WatchlistRow({ item }: { item: Item }) {
         </form>
       </div>
 
-      <details className="group mt-2">
-        <summary className="cursor-pointer list-none text-xs font-semibold text-accent hover:underline">
-          {t("watchlist.settings")}
-        </summary>
+      {expanded ? (
+        <div id={`detail-${id}`} className="mt-4 space-y-6 border-t border-border pt-4">
+          <WatchlistDetail symbol={item.symbol} detail={item.detail} />
+          <section className="space-y-3">
+            <h4 className="text-sm font-bold text-text">{t("watchlist.settings")}</h4>
         <form action={updateAction} className="mt-3 space-y-3">
           <input type="hidden" name="symbol" value={item.symbol} />
           <ThresholdField id={`threshold-${id}`} defaultValue={item.zScoreThreshold} />
@@ -247,7 +268,10 @@ function WatchlistRow({ item }: { item: Item }) {
             {updatePending ? t("watchlist.saving") : t("watchlist.saveSettings")}
           </button>
         </form>
-      </details>
+          </section>
+          <AlertRulesEditor symbol={item.symbol} rules={item.rules} suggestions={item.suggestions} current={item.current} />
+        </div>
+      ) : null}
 
       <FormMessage state={removeState} />
       <FormMessage state={updateState} />

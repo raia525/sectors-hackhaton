@@ -1,5 +1,4 @@
 import "server-only";
-import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { normalizeSymbol } from "@/lib/sectors/endpoints";
 import { summarizeCorporateActions } from "@/lib/analysis/corporate-actions";
@@ -8,6 +7,8 @@ import { concludeMarket, concludeStock, concludeTrackRecord, type Conclusion } f
 import { isSignal, type Bars } from "@/lib/intelligence/track-record";
 import type { Message } from "@/lib/i18n/message";
 import type { ToolSpec } from "./grok";
+import { readSnapshotFacts, readStoredAnalysis } from "@/lib/intelligence/watch-facts";
+import { describeRule } from "@/lib/notifications/custom-rules";
 
 /**
  * The chatbot's tools. Each reads data the app has already stored (daily
@@ -62,7 +63,7 @@ export const TOOL_SPECS: ToolSpec[] = [
     function: {
       name: "get_watchlist",
       description:
-        "The signed-in user's own watchlist: each stock's alert threshold, holding, latest stored signal, plus unread alerts and recent alerts.",
+        "The signed-in user's own watchlist: each stock's alert threshold, custom alert rules (and whether they fired), holding, latest stored signal, plus unread alerts and recent alerts.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -90,13 +91,6 @@ const conclusionText = (c: Conclusion, tm: ToolContext["tm"]) => ({
   points: c.points.map((p) => tm(p)),
 });
 
-const messageSchema = z.object({ key: z.string(), params: z.record(z.unknown()).optional() });
-const storedAnalysisSchema = z
-  .object({
-    realityCheck: z.object({ caveats: z.array(messageSchema).default([]) }).partial().optional(),
-    shadow: z.object({ warnings: z.array(messageSchema).default([]), fitWindow: z.number() }).partial().optional(),
-  })
-  .passthrough();
 
 const round = (v: number, d = 4) => Number(v.toFixed(d));
 
@@ -180,17 +174,14 @@ async function stock(raw: string, ctx: ToolContext) {
     .filter((a) => a.timing === "upcoming")
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const stored = storedAnalysisSchema.safeParse(snap.analysis);
-  const caveats = stored.success
-    ? [...(stored.data.shadow?.warnings ?? []), ...(stored.data.realityCheck?.caveats ?? [])].map((m) =>
-        ctx.tm(m as Message),
-      )
-    : [];
+  const stored = readStoredAnalysis(snap.analysis);
+  const caveats = stored.caveats.map((m) => ctx.tm(m));
+  const facts = readSnapshotFacts(snap);
 
   const conclusion = concludeStock(
     {
       symbol,
-      sessions: (stored.success ? stored.data.shadow?.fitWindow : undefined) ?? 0,
+      sessions: stored.fitWindow ?? 0,
       zScore: snap.zScore,
       fitQuality: snap.fitQuality,
       peers: snap.constituentCount,
@@ -223,6 +214,8 @@ async function stock(raw: string, ctx: ToolContext) {
     },
     newsCheck: snap.realityVerdict,
     smartMoney: snap.smartMoneyType ? { type: snap.smartMoneyType, conviction: snap.smartMoneyConviction } : null,
+    lastSession: facts.prices,
+    keyStats: facts.stats,
     upcomingCorporateActions: upcoming.map((a) => ({ date: a.date, kind: a.kind, summary: ctx.tm(a.summary), cashIdr: a.effect?.cashIdr ?? null })),
     conclusion: conclusionText(conclusion, ctx.tm),
     caveats,
@@ -249,7 +242,11 @@ async function searchTickers(query: string) {
 
 async function watchlist(ctx: ToolContext) {
   const [items, holdings, unread, recent] = await Promise.all([
-    prisma.watchlistItem.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "desc" } }),
+    prisma.watchlistItem.findMany({
+      where: { userId: ctx.userId },
+      orderBy: { createdAt: "desc" },
+      include: { rules: true },
+    }),
     prisma.holding.findMany({ where: { userId: ctx.userId } }),
     prisma.notification.count({ where: { userId: ctx.userId, readAt: null } }),
     prisma.notification.findMany({
@@ -278,6 +275,16 @@ async function watchlist(ctx: ToolContext) {
         alertThresholdZ: i.zScoreThreshold,
         holding: h ? { lots: h.lots, avgPrice: h.avgPrice } : null,
         latest: l ? { runDate: l.runDate, zScore: round(l.zScore, 2), isSignal: isSignal(l, ctx.bars) } : null,
+        // The user's own alert rules, written out, with whether each was met
+        // on its last check and when it last fired.
+        rules: i.rules.map((r) => ({
+          condition: ctx.tm(describeRule(r)),
+          enabled: r.enabled,
+          autoAdjusts: r.autoTune,
+          metOnLastCheck: r.lastMet,
+          lastValue: r.lastValue,
+          lastFired: r.lastTriggeredAt?.toISOString().slice(0, 10) ?? null,
+        })),
       };
     }),
     unreadAlerts: unread,

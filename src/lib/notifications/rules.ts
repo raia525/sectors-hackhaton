@@ -25,7 +25,7 @@ import { formatIdr } from "@/lib/format";
  * dispatch.ts) rather than the module guessing a language.
  */
 
-export type AlertKind = "DIVERGENCE" | "CORPORATE_ACTION" | "SMART_MONEY";
+export type AlertKind = "DIVERGENCE" | "CORPORATE_ACTION" | "SMART_MONEY" | "RULE";
 
 export interface Alert {
   kind: AlertKind;

@@ -1,6 +1,7 @@
 import { formatIdr, formatPercent, formatSigned } from "@/lib/format";
 import { msg, type Message } from "@/lib/i18n/message";
 import type { Brief } from "./brief";
+import type { WatchFacts } from "./watch-facts";
 import { SHIPPED_BARS, type Bars, type TrackRecord } from "./track-record";
 
 /**
@@ -218,32 +219,153 @@ export function concludeCompare(ranked: CompareRow[], bars: Bars = SHIPPED_BARS)
   };
 }
 
+/** Quarterly YoY growth beyond this, either way, is worth naming. */
+export const SHARP_GROWTH = 0.2;
+/** Within this share of the 52-week range counts as near the high or low. */
+export const RANGE_EDGE = 0.1;
+/** Volume at least this many times the 20-day average is unusual. */
+export const VOLUME_SPIKE = 2;
+/** Items named per point before "and N more". */
+const LIST_LIMIT = 3;
+
 export interface PortfolioFacts {
   watched: number;
   /** Watched stocks whose latest stored analysis clears the signal bars. */
   signalling: string[];
   /** Watched stocks with no stored analysis yet. */
-  notCovered: number;
+  notCovered: string[];
+  /** Unread alerts about stocks still on the watchlist. */
   unreadAlerts: number;
-  upcomingActions: number;
-  /** Cash from upcoming dividends on the user's holdings, in IDR. */
+  actions: { symbol: string; kind: "dividend" | "stock_split" | "agm"; date: string; cashIdr: number | null }[];
+  actionDays: number;
+  /** Dividends due on the user's holdings in that window, in IDR. */
   upcomingIncome: number;
+  /** Watched stocks with a sharp quarterly change in earnings or revenue. */
+  financial: { symbol: string; earningsGrowth: number | null; revenueGrowth: number | null }[];
+  /** Watched stocks with any quarterly figure known, sharp or not. */
+  financialKnown: number;
+  nearHigh: string[];
+  nearLow: string[];
+  volumeSpikes: { symbol: string; ratio: number }[];
+  /** Watched stocks with a custom rule that fired recently. */
+  rulesTriggered: string[];
+  /** Latest data date among the watched stocks. */
+  asOf: string | null;
 }
+
+/**
+ * Builds the watchlist facts from each watched stock's stored analysis.
+ * Every list is limited to `symbols`, the current watchlist, so nothing
+ * about other stocks can enter the conclusion.
+ */
+export function portfolioFacts(input: {
+  symbols: string[];
+  stocks: { facts: WatchFacts; isSignal: boolean }[];
+  unreadAlerts: number;
+  actions: PortfolioFacts["actions"];
+  rulesTriggered: string[];
+  actionDays: number;
+}): PortfolioFacts {
+  const watched = new Set(input.symbols);
+  const stocks = input.stocks.filter((s) => watched.has(s.facts.symbol));
+  const actions = input.actions
+    .filter((a) => watched.has(a.symbol))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const financial = stocks
+    .filter(({ facts: { stats } }) =>
+      [stats.earningsGrowth, stats.revenueGrowth].some((g) => g !== null && Math.abs(g) >= SHARP_GROWTH),
+    )
+    .map(({ facts }) => ({
+      symbol: facts.symbol,
+      earningsGrowth: facts.stats.earningsGrowth,
+      revenueGrowth: facts.stats.revenueGrowth,
+    }));
+
+  const asOf = stocks.reduce<string | null>((max, s) => (max === null || s.facts.runDate > max ? s.facts.runDate : max), null);
+
+  return {
+    watched: watched.size,
+    signalling: stocks.filter((s) => s.isSignal).map((s) => s.facts.symbol),
+    notCovered: input.symbols.filter((sym) => !stocks.some((s) => s.facts.symbol === sym)).sort(),
+    unreadAlerts: input.unreadAlerts,
+    actions,
+    actionDays: input.actionDays,
+    upcomingIncome: actions.reduce((sum, a) => sum + (a.cashIdr ?? 0), 0),
+    financial,
+    financialKnown: stocks.filter((s) => s.facts.stats.earningsGrowth !== null || s.facts.stats.revenueGrowth !== null).length,
+    nearHigh: stocks.filter((s) => s.facts.stats.rangePosition !== null && s.facts.stats.rangePosition >= 1 - RANGE_EDGE).map((s) => s.facts.symbol),
+    nearLow: stocks.filter((s) => s.facts.stats.rangePosition !== null && s.facts.stats.rangePosition <= RANGE_EDGE).map((s) => s.facts.symbol),
+    volumeSpikes: stocks
+      .filter((s) => (s.facts.prices?.volumeRatio ?? 0) >= VOLUME_SPIKE)
+      .map((s) => ({ symbol: s.facts.symbol, ratio: s.facts.prices?.volumeRatio ?? 0 })),
+    rulesTriggered: [...new Set(input.rulesTriggered.filter((s) => watched.has(s)))],
+    asOf,
+  };
+}
+
+const ACTION_NAME = {
+  dividend: "conclusion.action.dividend",
+  stock_split: "conclusion.action.split",
+  agm: "conclusion.action.agm",
+} as const;
+
+const more = (count: number): Message | null => (count > LIST_LIMIT ? msg("conclusion.more", { count: count - LIST_LIMIT }) : null);
 
 export function concludePortfolio(f: PortfolioFacts): Conclusion {
   if (f.watched === 0) {
     return { tone: "refused", headline: msg("conclusion.portfolio.empty"), points: [] };
   }
   const points: Message[] = [];
+
   if (f.unreadAlerts > 0) points.push(msg("conclusion.portfolio.alerts", { count: f.unreadAlerts }));
-  if (f.upcomingActions > 0) {
+  if (f.rulesTriggered.length > 0) {
+    points.push(msg("conclusion.portfolio.rules", { count: f.rulesTriggered.length, symbols: f.rulesTriggered.join(", ") }));
+  }
+
+  // Corporate actions, soonest first, with the rupiah due on a holding.
+  for (const a of f.actions.slice(0, LIST_LIMIT)) {
     points.push(
-      f.upcomingIncome > 0
-        ? msg("conclusion.portfolio.income", { count: f.upcomingActions, amount: formatIdr(f.upcomingIncome) })
-        : msg("conclusion.portfolio.actions", { count: f.upcomingActions }),
+      a.cashIdr
+        ? msg("conclusion.portfolio.actionCash", { symbol: a.symbol, action: msg(ACTION_NAME[a.kind]), date: a.date, amount: formatIdr(a.cashIdr) })
+        : msg("conclusion.portfolio.action", { symbol: a.symbol, action: msg(ACTION_NAME[a.kind]), date: a.date }),
     );
   }
-  if (f.notCovered > 0) points.push(msg("conclusion.portfolio.notCovered", { count: f.notCovered }));
+  const moreActions = more(f.actions.length);
+  if (moreActions) points.push(moreActions);
+  if (f.actions.length === 0 && f.watched > f.notCovered.length) {
+    points.push(msg("conclusion.portfolio.noActions", { days: f.actionDays }));
+  }
+
+  // Financial reports: the latest quarter against the same quarter a year
+  // earlier, named only when the change is sharp.
+  for (const r of f.financial.slice(0, LIST_LIMIT)) {
+    points.push(
+      msg("conclusion.portfolio.financial", {
+        symbol: r.symbol,
+        earnings: r.earningsGrowth === null ? "-" : formatPercent(r.earningsGrowth, 1),
+        revenue: r.revenueGrowth === null ? "-" : formatPercent(r.revenueGrowth, 1),
+      }),
+    );
+  }
+  const moreFinancial = more(f.financial.length);
+  if (moreFinancial) points.push(moreFinancial);
+  if (f.financial.length === 0 && f.financialKnown > 0) {
+    points.push(msg("conclusion.portfolio.financialSteady", { count: f.financialKnown }));
+  }
+
+  if (f.nearHigh.length > 0) points.push(msg("conclusion.portfolio.nearHigh", { symbols: f.nearHigh.join(", ") }));
+  if (f.nearLow.length > 0) points.push(msg("conclusion.portfolio.nearLow", { symbols: f.nearLow.join(", ") }));
+  if (f.volumeSpikes.length > 0) {
+    points.push(
+      msg("conclusion.portfolio.volume", {
+        list: f.volumeSpikes.map((v) => `${v.symbol} ${v.ratio.toFixed(1)}x`).join(", "),
+      }),
+    );
+  }
+  if (f.notCovered.length > 0) {
+    points.push(msg("conclusion.portfolio.notCovered", { count: f.notCovered.length, symbols: f.notCovered.join(", ") }));
+  }
 
   return f.signalling.length > 0
     ? {

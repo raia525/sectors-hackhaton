@@ -122,6 +122,7 @@ model WatchlistItem {
 
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rules     AlertRule[]
 
   @@unique([userId, symbol])
   @@index([symbol])
@@ -148,6 +149,7 @@ enum NotificationKind {
   DIVERGENCE
   CORPORATE_ACTION
   SMART_MONEY
+  RULE
 }
 
 enum NotificationChannel {
@@ -297,6 +299,11 @@ model SignalSnapshot {
   /// Raw corporate actions, so each user's rupiah effect can be computed
   /// from their own holding later without spending another credit.
   corporateActions     Json?
+  /// The run's key statistics and price and volume facts, stored so the
+  /// watchlist and custom alert rules can use them without another request.
+  /// Null on snapshots stored before these columns existed.
+  keyStats             Json?
+  marketFacts          Json?
 
   /// Filled in by a later run, once enough sessions have passed.
   forwardSessions    Int?
@@ -501,4 +508,53 @@ model ChatMessage {
   @@index([threadId, createdAt])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+enum RuleMetric {
+  PRICE
+  CHANGE_1D
+  VOLUME
+  VOLUME_RATIO
+  RETURN_5D
+  Z_SCORE
+  STOCK_SPECIFIC
+  PE
+  PB
+  DIVIDEND_YIELD
+  RANGE_POSITION
+}
+
+enum RuleOperator {
+  LT
+  LTE
+  EQ
+  GTE
+  GT
+}
+
+/// A user's own alert condition on one watched stock, checked once per
+/// trading day after the close (see src/lib/notifications/custom-rules.ts).
+/// It fires when the condition becomes true, not on every day it stays true.
+model AlertRule {
+  id              String        @id @default(cuid())
+  watchlistItemId String
+  metric          RuleMetric
+  operator        RuleOperator
+  value           Float
+  enabled         Boolean       @default(true)
+  /// When set, the value is recomputed from the newest data after each run
+  /// with this suggestion preset, so the band follows the stock.
+  autoTune        Boolean       @default(false)
+  preset          String?
+  note            String?
+  lastMet         Boolean?
+  lastValue       Float?
+  lastCheckedAt   DateTime?
+  lastTriggeredAt DateTime?
+  tunedAt         DateTime?
+  createdAt       DateTime      @default(now())
+  watchlistItem   WatchlistItem @relation(fields: [watchlistItemId], references: [id], onDelete: Cascade)
+
+  @@index([watchlistItemId])
+  @@map("alert_rules")
 }

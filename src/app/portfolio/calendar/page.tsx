@@ -20,6 +20,8 @@ export default async function CalendarPage() {
 
   const { calendar, notCovered, facts } = await loadPortfolio(user.id);
   const tone = facts.watched === 0 ? "refused" : calendar.length > 0 ? "watch" : "calm";
+  // Income over the same 14 days this page lists, not the conclusion's window.
+  const income = calendar.reduce((sum, e) => sum + (e.item.effect?.cashIdr ?? 0), 0);
 
   return (
     <>
@@ -36,11 +38,11 @@ export default async function CalendarPage() {
             ? t("brief.calendarNoWatchlist")
             : calendar.length === 0
               ? t("conclusion.calendar.none", { days: CALENDAR_DAYS })
-              : facts.upcomingIncome > 0
+              : income > 0
                 ? t("conclusion.calendar.income", {
                     count: calendar.length,
                     days: CALENDAR_DAYS,
-                    amount: formatIdr(facts.upcomingIncome),
+                    amount: formatIdr(income),
                   })
                 : t("conclusion.calendar.some", { count: calendar.length, days: CALENDAR_DAYS })
         }

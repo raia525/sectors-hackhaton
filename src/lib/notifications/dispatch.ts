@@ -16,6 +16,8 @@ import { sendMail } from "./mailer";
 import { renderMessage } from "@/lib/i18n/message";
 import { translate } from "@/lib/i18n/translate";
 import { isLocale, DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import type { WatchFacts } from "@/lib/intelligence/watch-facts";
+import { evaluateRules, retune, type RuleOutcome, type RuleState } from "./custom-rules";
 
 /**
  * Watchlist alert delivery.
@@ -35,6 +37,8 @@ export interface StoredAnalysis {
   realityCheck: RealityCheck;
   /** Raw corporate actions, summarised here against each user's holding. */
   corporateActions: unknown;
+  /** Price, volume and key statistics, for the user's own alert rules. */
+  facts: WatchFacts;
 }
 
 export interface DeliverySummary {
@@ -48,6 +52,8 @@ export interface DeliverySummary {
 export async function deliverAlerts(
   analyses: Map<string, StoredAnalysis>,
   now = new Date(),
+  /** The signal bar auto-adjusting divergence rules start from. */
+  signalZ = 2,
 ): Promise<DeliverySummary> {
   const summary: DeliverySummary = {
     alertsCreated: 0,
@@ -60,7 +66,10 @@ export async function deliverAlerts(
     // Only verified accounts: an unverified address may not belong to the
     // person who typed it, and must not start receiving mail.
     where: { user: { emailVerifiedAt: { not: null } } },
-    include: { user: { select: { id: true, email: true, name: true, locale: true } } },
+    include: {
+      user: { select: { id: true, email: true, name: true, locale: true } },
+      rules: true,
+    },
   });
 
   const notAnalysed = new Set<string>();
@@ -75,7 +84,7 @@ export async function deliverAlerts(
 
   for (const [userId, items] of byUser) {
     try {
-      const delivered = await deliverToUser(userId, items, analyses, now);
+      const delivered = await deliverToUser(userId, items, analyses, now, signalZ);
       summary.alertsCreated += delivered.alerts;
       if (delivered.emailed) summary.emailsSent += 1;
     } catch (error) {
@@ -91,7 +100,7 @@ export async function deliverAlerts(
 }
 
 type WatchItemWithUser = Prisma.WatchlistItemGetPayload<{
-  include: { user: { select: { id: true; email: true; name: true; locale: true } } };
+  include: { user: { select: { id: true; email: true; name: true; locale: true } }; rules: true };
 }>;
 
 async function deliverToUser(
@@ -99,9 +108,11 @@ async function deliverToUser(
   items: WatchItemWithUser[],
   analyses: Map<string, StoredAnalysis>,
   now: Date,
+  signalZ: number,
 ): Promise<{ alerts: number; emailed: boolean }> {
   const alerts: Alert[] = [];
   const touched: { id: string; z: number }[] = [];
+  const ruleUpdates: { outcome: RuleOutcome; nextValue: number | null }[] = [];
 
   const holdings = await prisma.holding.findMany({ where: { userId } });
   const holdingBySymbol = new Map(holdings.map((h) => [h.symbol, h]));
@@ -118,6 +129,27 @@ async function deliverToUser(
       lastNotifiedAt: item.lastNotifiedAt,
       lastNotifiedZ: item.lastNotifiedZ,
     };
+
+    // The user's own rules on this stock, against the stored facts.
+    if (item.rules.length > 0) {
+      const states: RuleState[] = item.rules.map((r) => ({
+        id: r.id,
+        metric: r.metric,
+        operator: r.operator,
+        value: r.value,
+        enabled: r.enabled,
+        autoTune: r.autoTune,
+        preset: r.preset,
+        note: r.note,
+        lastMet: r.lastMet,
+      }));
+      const evaluated = evaluateRules(states, analysis.facts);
+      alerts.push(...evaluated.alerts);
+      for (const outcome of evaluated.outcomes) {
+        const rule = states.find((r) => r.id === outcome.id);
+        ruleUpdates.push({ outcome, nextValue: rule ? retune(rule, analysis.facts, signalZ) : null });
+      }
+    }
 
     const divergence = evaluateDivergenceAlert(state, analysis.shadow, analysis.realityCheck, now);
     if (divergence) {
@@ -141,7 +173,10 @@ async function deliverToUser(
     }
   }
 
-  if (alerts.length === 0) return { alerts: 0, emailed: false };
+  if (alerts.length === 0) {
+    await saveRuleStates(ruleUpdates, now);
+    return { alerts: 0, emailed: false };
+  }
 
   const digest = buildDigest(alerts);
   const user = items[0].user;
@@ -173,10 +208,36 @@ async function deliverToUser(
     });
   }
 
+  await saveRuleStates(ruleUpdates, now);
+
   // Returns false rather than throwing when email is unconfigured or the
   // relay refuses: the in-app notifications are already saved at this point.
   const { subject, html, text } = renderDigestEmail(locale, user.name, digest);
   const emailed = await sendMail({ to: user.email, subject, html, text });
 
   return { alerts: digest.alerts.length, emailed };
+}
+
+/**
+ * Records each rule's outcome: whether it was met (which re-arms it once
+ * false), the value seen, when it last fired, and an auto-adjusted value
+ * for the next run. A rule whose metric was unknown keeps its state.
+ */
+async function saveRuleStates(
+  updates: { outcome: RuleOutcome; nextValue: number | null }[],
+  now: Date,
+): Promise<void> {
+  for (const { outcome, nextValue } of updates) {
+    if (outcome.met === null && nextValue === null) continue;
+    await prisma.alertRule.update({
+      where: { id: outcome.id },
+      data: {
+        ...(outcome.met === null
+          ? {}
+          : { lastMet: outcome.met, lastValue: outcome.value, lastCheckedAt: now }),
+        ...(outcome.triggered ? { lastTriggeredAt: now } : {}),
+        ...(nextValue === null ? {} : { value: nextValue, tunedAt: now }),
+      },
+    });
+  }
 }

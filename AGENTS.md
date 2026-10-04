@@ -116,6 +116,27 @@ ticker list) and Portfolio (`/portfolio` watchlist, alerts, calendar).
   fetched for every company (about 950 credits). The list says how many
   sectors it knows.
 
+## Watchlist facts and alert rules
+
+- Each `SignalSnapshot` also stores `keyStats` and `marketFacts` (last
+  close, daily and 5-day change, volume against its 20-day average, daily
+  volatility). They come from data the analysis already fetched, so they
+  cost no credit. Read them through `readSnapshotFacts`
+  (`src/lib/intelligence/watch-facts.ts`); older snapshots have none, and
+  that reads as "not known", never zero.
+- The watchlist conclusion (`portfolioFacts` and `concludePortfolio`) is
+  limited to the user's current watchlist, alert counts included. Financial
+  points use the latest quarter's YoY growth and say so; the data has no
+  earnings calendar, so nothing claims a report date.
+- `AlertRule` rows are the user's own conditions (price, volume, PE and so
+  on, with `<`, `<=`, `=`, `>=`, `>`), evaluated in `deliverAlerts` after
+  each daily run, never intraday. They are edge triggered (fire when the
+  condition becomes true, re-arm once it is false), a missing metric never
+  fires, and `=` has a tolerance of one price tick or 0.5%. Suggested rules
+  are computed on the server from stored facts (`suggestRules`); with
+  `autoTune` the value is recomputed after each run, and editing it by hand
+  turns that off.
+
 ## Indonesian glossary
 
 One term per concept, held by a test in `dictionary.test.ts`: twin =
