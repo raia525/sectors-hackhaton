@@ -182,27 +182,23 @@ export async function updateWatchItem(
   return { success: msg("watchlist.action.saved", { symbol }) };
 }
 
-/** Turns the daily brief email on or off for the signed-in user only. */
-export async function setBriefOptIn(formData: FormData): Promise<void> {
+
+/**
+ * Marks the user's alerts as read: all of them, or one when an id is sent.
+ * Scoped by user id in the query, so another account's alert id matches
+ * nothing.
+ */
+export async function markAlertsRead(_prev: FormState, formData: FormData): Promise<FormState> {
   const userId = await getSessionUserId();
-  if (!userId) return;
+  if (!userId) return { error: msg("watchlist.action.signInRequired") };
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { briefOptIn: formData.get("enabled") === "true" },
-  });
-  revalidatePath("/portfolio", "layout");
-}
-
-export async function markNotificationsRead(): Promise<void> {
-  const userId = await getSessionUserId();
-  if (!userId) return;
-
-  await prisma.notification.updateMany({
-    where: { userId, readAt: null },
+  const id = String(formData.get("id") ?? "");
+  const result = await prisma.notification.updateMany({
+    where: { userId, readAt: null, ...(id ? { id } : {}) },
     data: { readAt: new Date() },
   });
   revalidatePath("/portfolio", "layout");
+  return { ok: msg("alerts.marked", { count: result.count }) };
 }
 
 // Custom alert rules ---------------------------------------------------------

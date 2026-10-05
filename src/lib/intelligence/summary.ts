@@ -340,12 +340,15 @@ export function concludePortfolio(f: PortfolioFacts): Conclusion {
   // Financial reports: the latest quarter against the same quarter a year
   // earlier, named only when the change is sharp.
   for (const r of f.financial.slice(0, LIST_LIMIT)) {
+    // Only the figures that are known are named; a dash in a sentence reads badly.
+    const earnings = r.earningsGrowth === null ? null : formatPercent(r.earningsGrowth, 1);
+    const revenue = r.revenueGrowth === null ? null : formatPercent(r.revenueGrowth, 1);
     points.push(
-      msg("conclusion.portfolio.financial", {
-        symbol: r.symbol,
-        earnings: r.earningsGrowth === null ? "-" : formatPercent(r.earningsGrowth, 1),
-        revenue: r.revenueGrowth === null ? "-" : formatPercent(r.revenueGrowth, 1),
-      }),
+      earnings && revenue
+        ? msg("conclusion.portfolio.financial", { symbol: r.symbol, earnings, revenue })
+        : earnings
+          ? msg("conclusion.portfolio.financialEarnings", { symbol: r.symbol, earnings })
+          : msg("conclusion.portfolio.financialRevenue", { symbol: r.symbol, revenue: revenue ?? "" }),
     );
   }
   const moreFinancial = more(f.financial.length);

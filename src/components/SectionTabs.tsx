@@ -11,7 +11,14 @@ import { usePathname } from "next/navigation";
  * Scrolls sideways on a phone rather than wrapping, so the row keeps one
  * line and the page below does not jump.
  */
-export function SectionTabs({ label, items }: { label: string; items: { href: string; label: string }[] }) {
+export function SectionTabs({
+  label,
+  items,
+}: {
+  label: string;
+  /** `count`, when above zero, shows as a small badge (unread alerts). */
+  items: { href: string; label: string; count?: number; countLabel?: string }[];
+}) {
   const pathname = usePathname();
   const [first] = items;
   const isActive = (href: string) =>
@@ -34,6 +41,14 @@ export function SectionTabs({ label, items }: { label: string; items: { href: st
                 }`}
               >
                 {item.label}
+                {item.count ? (
+                  <span
+                    aria-label={item.countLabel}
+                    className="tnum ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-bright px-1.5 text-[11px] font-bold text-white"
+                  >
+                    {item.count > 99 ? "99+" : item.count}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );

@@ -6,6 +6,8 @@ import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Card, CardHeader, PageHeader } from "@/components/ui/primitives";
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, LABEL, TEXTAREA } from "@/components/formStyles";
 import { SymbolListEditor } from "../SymbolListEditor";
+import { SettingCheck, SettingsGroup } from "../settings/SettingsGroup";
+import { getAppSettings } from "@/lib/settings/server";
 import {
   addStripSymbols,
   fillSectors,
@@ -17,7 +19,7 @@ import {
 
 /** The landing page ticker strip, and the directory every ticker list reads. */
 export default async function TickerStripPage() {
-  const { t } = await getTranslator();
+  const [{ t }, { strip }] = await Promise.all([getTranslator(), getAppSettings()]);
   const [rows, directory, withSector, lastSync] = await Promise.all([
     listSymbols("strip"),
     prisma.companyDirectoryEntry.count(),
@@ -56,6 +58,28 @@ export default async function TickerStripPage() {
         </div>
         <p className="mt-4 text-xs text-text-subtle">{t("admin.strip.settingsHint")}</p>
       </Card>
+
+      <SettingsGroup
+        group="strip"
+        title={t("admin.settings.strip.title")}
+        description={t("admin.settings.strip.description")}
+        resetLabel={t("admin.settings.reset")}
+        saveLabel={t("account.save")}
+      >
+        <fieldset>
+          <legend className={LABEL}>{t("admin.settings.strip.speed")}</legend>
+          <div className="flex flex-wrap gap-2">
+            {(["slow", "normal", "fast"] as const).map((speed) => (
+              <label key={speed} className="flex cursor-pointer items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-text has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
+                <input type="radio" name="speed" value={speed} defaultChecked={strip.speed === speed} className="accent-accent-bright" />
+                {t(`admin.settings.strip.speed.${speed}`)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <SettingCheck name="showNames" label={t("admin.settings.strip.names")} checked={strip.showNames} />
+        <SettingCheck name="showMove" label={t("admin.settings.strip.move")} checked={strip.showMove} hint={t("admin.settings.strip.moveHint")} />
+      </SettingsGroup>
 
       <Card>
         <CardHeader title={t("admin.list.title")} />

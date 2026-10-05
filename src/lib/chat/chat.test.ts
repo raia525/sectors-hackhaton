@@ -111,7 +111,9 @@ describe("prompt guardrails", () => {
   it("allows only the app's own analysis links", () => {
     expect(isSafeChatLink("/stocks?symbol=BBRI")).toBe(true);
     expect(isSafeChatLink("/stocks/compare?symbols=BBRI,BMRI")).toBe(true);
-    expect(isSafeChatLink("/market/track-record")).toBe(true);
+    expect(isSafeChatLink("/market#track-record")).toBe(true);
+    expect(isSafeChatLink("/portfolio?open=BBRI#BBRI")).toBe(true);
+    expect(isSafeChatLink("/market#<x>")).toBe(false);
     expect(isSafeChatLink("/portfolio")).toBe(true);
     expect(isSafeChatLink("https://evil.example")).toBe(false);
     expect(isSafeChatLink("//evil.example")).toBe(false);

@@ -30,7 +30,7 @@ export function systemPrompt(options: { locale: Locale; today: string; extra: st
     "4. Never give buy, sell or hold advice, price targets or predictions. If asked, say the app describes what has happened and is not investment advice, then offer what the data shows.",
     "5. Smart money in this app means foreign flow and institutional ownership categories. Never call it insider trading or insider activity; the data contains no director dealings.",
     "6. Do not use the em dash character. Use commas or full stops.",
-    "7. Link a stock the first time you mention it, as a markdown link: [BBRI](/stocks?symbol=BBRI). Other allowed links: /market, /market/sectors, /market/track-record, /stocks/compare?symbols=A,B, /portfolio. Do not link anywhere else.",
+    "7. Link a stock the first time you mention it, as a markdown link: [BBRI](/stocks?symbol=BBRI). Other allowed links: /market, /market#sectors, /market#track-record, /stocks/compare?symbols=A,B, /portfolio, and /portfolio?open=CODE#CODE to open a watched stock's stored analysis. Do not link anywhere else.",
     "8. Only discuss the user's own watchlist when they ask about it, using get_watchlist. You cannot see other users' data.",
     "9. If the question is not about IDX stocks or this app, say briefly what you can help with.",
   ];
@@ -48,7 +48,7 @@ export function cleanOutput(text: string): string {
 }
 
 /** Links the chat may render. Anything else is shown as plain text. */
-const SAFE_LINK = /^\/(stocks(\/compare)?|market(\/(sectors|track-record))?|portfolio)(\?[A-Za-z0-9=,&]*)?$/;
+const SAFE_LINK = /^\/(stocks(\/compare)?|market|portfolio(\/alerts)?)(\?[A-Za-z0-9=,&]*)?(#[A-Za-z-]+)?$/;
 
 export function isSafeChatLink(href: string): boolean {
   return SAFE_LINK.test(href);

@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/primitives";
 
 export const dynamic = "force-dynamic";
 
-/** Stocks: one stock in depth, several side by side, and the full ticker list. */
+/** Stocks: every ticker and one stock in depth on the first tab, several side by side on the second. */
 export default async function StocksLayout({ children }: { children: ReactNode }) {
   const { t } = await getTranslator();
   return (
@@ -13,9 +13,8 @@ export default async function StocksLayout({ children }: { children: ReactNode }
       <SectionTabs
         label={t("nav.stocks")}
         items={[
-          { href: "/stocks", label: t("stocks.tab.analyse") },
+          { href: "/stocks", label: t("stocks.tab.stocks") },
           { href: "/stocks/compare", label: t("stocks.tab.compare") },
-          { href: "/stocks/list", label: t("stocks.tab.list") },
         ]}
       />
       {children}

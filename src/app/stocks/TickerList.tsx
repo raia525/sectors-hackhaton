@@ -3,34 +3,41 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/server";
+import { formatIdr, formatPercent } from "@/lib/format";
 import { isSignal } from "@/lib/intelligence/track-record";
+import { readSnapshotFacts } from "@/lib/intelligence/watch-facts";
 import { getSignalBars } from "@/lib/settings/server";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { SymbolSearch } from "@/components/SymbolSearch";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { BUTTON_SMALL, INPUT, LABEL } from "@/components/formStyles";
 import { watchFromList } from "./actions";
-
-export const metadata = { title: "Ticker list | SHADOW IDX" };
 
 const PAGE_SIZE = 50;
 const SORTS = ["symbol", "name"] as const;
 const SHOW = ["all", "watched", "universe", "analysed"] as const;
 
+export interface ListParams {
+  q?: string;
+  sector?: string;
+  sort?: string;
+  show?: string;
+  page?: string;
+}
+
 /**
- * Every IDX ticker in the synced directory, searchable and filterable, with
- * what the app already knows about each: on your watchlist, in the daily
- * run, and its latest stored signal. Reads the database only.
+ * The Stocks home: a quick search that opens an analysis, the stocks on the
+ * user's watchlist, and every IDX ticker in the synced directory with what
+ * the app already knows about each (on your watchlist, in the daily run,
+ * the latest stored signal, last close and daily change). Reads the
+ * database only; only opening an analysis can spend a credit.
  *
  * The sector filter says how many tickers have a known sector, because
  * sectors are learnt from analyses rather than fetched for all ~950
  * companies, and a filter that silently hides the rest would mislead.
  */
-export default async function TickerListPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; sector?: string; sort?: string; show?: string; page?: string }>;
-}) {
-  const [{ t }, params, user, bars] = await Promise.all([getTranslator(), searchParams, getCurrentUser(), getSignalBars()]);
+export async function TickerList({ params }: { params: ListParams }) {
+  const [{ t }, user, bars] = await Promise.all([getTranslator(), getCurrentUser(), getSignalBars()]);
   const q = (params.q ?? "").trim().slice(0, 40);
   const sector = (params.sector ?? "").trim();
   const sort = SORTS.includes(params.sort as (typeof SORTS)[number]) ? (params.sort as (typeof SORTS)[number]) : "symbol";
@@ -39,7 +46,9 @@ export default async function TickerListPage({
 
   const [watched, universe, analysed] = await Promise.all([
     user
-      ? prisma.watchlistItem.findMany({ where: { userId: user.id }, select: { symbol: true } }).then((r) => r.map((x) => x.symbol))
+      ? prisma.watchlistItem
+          .findMany({ where: { userId: user.id }, select: { symbol: true }, orderBy: { createdAt: "desc" } })
+          .then((r) => r.map((x) => x.symbol))
       : Promise.resolve([] as string[]),
     prisma.universeStock.findMany({ where: { isActive: true }, select: { symbol: true } }).then((r) => r.map((x) => x.symbol)),
     show === "analysed"
@@ -82,14 +91,13 @@ export default async function TickerListPage({
     where: { symbol: { in: rows.map((r) => r.symbol) } },
     orderBy: { runDate: "desc" },
     distinct: ["symbol"],
-    select: { symbol: true, zScore: true, fitQuality: true, constituentCount: true, runDate: true },
   });
   const latestBy = new Map(latest.map((l) => [l.symbol, l]));
   const watchedSet = new Set(watched);
   const universeSet = new Set(universe);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const href = (p: number) =>
-    `/stocks/list?${new URLSearchParams({
+    `/stocks?${new URLSearchParams({
       ...(q ? { q } : {}),
       ...(sector ? { sector } : {}),
       ...(sort !== "symbol" ? { sort } : {}),
@@ -100,6 +108,28 @@ export default async function TickerListPage({
   return (
     <>
       <PageHeader title={t("list.title")} description={t("list.description", { count: all })} />
+
+      <div className="max-w-2xl">
+        <SymbolSearch />
+      </div>
+
+      {watched.length > 0 ? (
+        <div>
+          <p className="text-[12px] font-bold uppercase tracking-wider text-text-subtle">{t("analyse.fromWatchlist")}</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {watched.slice(0, 12).map((symbol) => (
+              <li key={symbol}>
+                <Link
+                  href={`/stocks?symbol=${symbol}`}
+                  className="inline-block rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-text transition-colors hover:border-accent hover:text-accent"
+                >
+                  {symbol}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <Card>
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto] lg:items-end" role="search">
@@ -147,8 +177,11 @@ export default async function TickerListPage({
           <p className="px-6 pt-5 text-sm text-text-muted">{t("list.showing", { count: total })}</p>
           <ul className="mt-3 divide-y divide-border">
             {rows.map((row) => {
-              const l = latestBy.get(row.symbol);
-              const signal = l ? isSignal(l, bars) : false;
+              const snap = latestBy.get(row.symbol);
+              const facts = snap ? readSnapshotFacts(snap) : null;
+              const signal = snap ? isSignal(snap, bars) : false;
+              const close = facts?.prices?.lastClose ?? null;
+              const change = facts?.prices?.change1d ?? null;
               return (
                 <li key={row.symbol} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
                   <div className="min-w-0">
@@ -156,11 +189,21 @@ export default async function TickerListPage({
                       <Link href={`/stocks?symbol=${row.symbol}`} className="text-[15px] font-extrabold tracking-wide text-text hover:text-accent">
                         {row.symbol}
                       </Link>
+                      {close !== null ? (
+                        <span className="tnum text-sm text-text">
+                          {formatIdr(close)}
+                          {change !== null ? (
+                            <span className={`ml-1.5 font-semibold ${change >= 0 ? "text-up" : "text-down"}`}>
+                              {formatPercent(change)}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
                       {watchedSet.has(row.symbol) ? <Badge tone="accent">{t("list.badge.watched")}</Badge> : null}
                       {universeSet.has(row.symbol) ? <Badge tone="neutral">{t("list.badge.universe")}</Badge> : null}
-                      {l ? (
+                      {snap ? (
                         <Badge tone={signal ? "extreme" : "normal"}>
-                          {t(signal ? "list.badge.signal" : "list.badge.analysed", { z: l.zScore.toFixed(1), date: l.runDate })}
+                          {t(signal ? "list.badge.signal" : "list.badge.analysed", { z: snap.zScore.toFixed(1), date: snap.runDate })}
                         </Badge>
                       ) : null}
                     </p>
@@ -194,6 +237,7 @@ export default async function TickerListPage({
           ) : null}
         </Card>
       )}
+      <p className="text-xs text-text-subtle">{t("list.pricesNote")}</p>
     </>
   );
 }

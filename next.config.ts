@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
       { source: "/brief", destination: "/market", permanent: false },
       { source: "/compare", destination: "/stocks/compare", permanent: false },
       { source: "/watchlist", destination: "/portfolio", permanent: false },
+      // Pages merged into others when the menus were slimmed down.
+      { source: "/market/sectors", destination: "/market#sectors", permanent: false },
+      { source: "/market/track-record", destination: "/market#track-record", permanent: false },
+      { source: "/stocks/list", destination: "/stocks", permanent: false },
+      { source: "/portfolio/calendar", destination: "/portfolio#calendar", permanent: false },
     ];
   },
 };

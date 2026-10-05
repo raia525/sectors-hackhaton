@@ -13,7 +13,9 @@ import { parsePreferences } from "@/lib/settings/user";
 import { WatchlistManager } from "@/components/WatchlistManager";
 import { ConclusionBlock, TONE_KEY } from "@/components/ConclusionBlock";
 import { Card, CardHeader, PageHeader } from "@/components/ui/primitives";
-import { setBriefOptIn } from "./actions";
+import Link from "next/link";
+import { CalendarList } from "@/components/BriefSections";
+import { CONCLUSION_ACTION_DAYS } from "@/lib/intelligence/portfolio";
 
 export const metadata = {
   title: "Portfolio | SHADOW IDX",
@@ -22,7 +24,8 @@ export const metadata = {
 };
 
 /** Watchlist: the summary of the user's stocks, then each stock and its settings. */
-export default async function PortfolioPage() {
+export default async function PortfolioPage({ searchParams }: { searchParams: Promise<{ open?: string }> }) {
+  const { open } = await searchParams;
   const [user, { t, tm }, bars] = await Promise.all([getCurrentUser(), getTranslator(), getSignalBars()]);
   if (!user) redirect("/signin?next=/portfolio");
 
@@ -55,6 +58,7 @@ export default async function PortfolioPage() {
         <CardHeader title={t("watchlist.trackedTitle")} description={t("watchlist.trackedDescription")} />
         <WatchlistManager
           defaultThreshold={preferences.defaultThreshold}
+          openSymbol={open?.toUpperCase() ?? null}
           items={portfolio.items.map((item) => {
             const holding = portfolio.holdingBySymbol.get(item.symbol);
             const stock = portfolio.stocks.get(item.symbol);
@@ -119,8 +123,16 @@ export default async function PortfolioPage() {
               ? Object.fromEntries(METRICS.map((m) => [m, metricValue(facts, m)]))
               : {};
 
+            const next = stock?.actions
+              .filter((x) => x.timing === "upcoming")
+              .sort((x, y) => x.date.localeCompare(y.date))[0];
+
             return {
               symbol: item.symbol,
+              addedAt: item.createdAt.toISOString(),
+              lastClose: facts?.prices?.lastClose ?? null,
+              change1d: facts?.prices?.change1d ?? null,
+              nextAction: next ? { date: next.date, label: tm(next.summary) } : null,
               zScoreThreshold: item.zScoreThreshold,
               notifyOnCorporateAction: item.notifyOnCorporateAction,
               notifyOnSmartMoney: item.notifyOnSmartMoney,
@@ -149,30 +161,24 @@ export default async function PortfolioPage() {
         />
       </Card>
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="max-w-2xl">
-            <h2 className="text-[16px] font-bold text-text">{t("watchlist.briefTitle")}</h2>
-            <p className="mt-1 text-sm text-text-muted">{t("watchlist.briefDescription")}</p>
-            <p className="mt-2 text-xs font-semibold text-text-subtle">
-              {briefOptIn ? t("watchlist.briefStatusOn") : t("watchlist.briefStatusOff")}
-            </p>
-          </div>
-          <form action={setBriefOptIn}>
-            <input type="hidden" name="enabled" value={briefOptIn ? "false" : "true"} />
-            <button
-              type="submit"
-              className={
-                briefOptIn
-                  ? "rounded-full border border-border-strong px-5 py-2.5 text-sm font-bold text-text transition-colors hover:bg-surface-raised"
-                  : "rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-contrast transition-colors hover:bg-accent-hover"
-              }
-            >
-              {briefOptIn ? t("watchlist.briefOff") : t("watchlist.briefOn")}
-            </button>
-          </form>
-        </div>
+      <Card id="calendar" className="scroll-mt-24">
+        <CardHeader
+          title={t("watchlist.upcomingTitle", { days: CONCLUSION_ACTION_DAYS })}
+          description={t("watchlist.upcomingDescription")}
+        />
+        {portfolio.items.length === 0 ? (
+          <p className="text-sm text-text-muted">{t("brief.calendarNoWatchlist")}</p>
+        ) : (
+          <CalendarList entries={portfolio.upcoming} t={t} tm={tm} />
+        )}
       </Card>
+
+      <p className="text-sm text-text-muted">
+        {briefOptIn ? t("watchlist.briefStatusOn") : t("watchlist.briefStatusOff")}{" "}
+        <Link href="/account" className="font-semibold text-accent hover:underline">
+          {t("watchlist.briefChange")}
+        </Link>
+      </p>
     </>
   );
 }

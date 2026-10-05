@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { formatIdr, formatPercent } from "@/lib/format";
 import {
   addToWatchlist,
   removeFromWatchlist,
@@ -25,6 +26,12 @@ import { AlertRulesEditor, type RuleView } from "./AlertRulesEditor";
 
 interface Item {
   symbol: string;
+  /** ISO time the stock was added, for the "recently added" sort. */
+  addedAt: string;
+  /** Stored last close and daily change, shown on the collapsed row. */
+  lastClose: number | null;
+  change1d: number | null;
+  nextAction: { date: string; label: string } | null;
   zScoreThreshold: number;
   notifyOnCorporateAction: boolean;
   notifyOnSmartMoney: boolean;
@@ -40,8 +47,31 @@ interface Item {
 
 const INITIAL: ActionState = {};
 
-export function WatchlistManager({ items, defaultThreshold = 2 }: { items: Item[]; defaultThreshold?: number }) {
+type Sort = "signal" | "symbol" | "added";
+
+const SORTERS: Record<Sort, (a: Item, b: Item) => number> = {
+  // Signalling first, then the largest divergence, then by code.
+  signal: (a, b) =>
+    Number(b.latest?.signal ?? false) - Number(a.latest?.signal ?? false) ||
+    Math.abs(b.latest?.zScore ?? 0) - Math.abs(a.latest?.zScore ?? 0) ||
+    a.symbol.localeCompare(b.symbol),
+  symbol: (a, b) => a.symbol.localeCompare(b.symbol),
+  added: (a, b) => b.addedAt.localeCompare(a.addedAt),
+};
+
+export function WatchlistManager({
+  items,
+  defaultThreshold = 2,
+  openSymbol = null,
+}: {
+  items: Item[];
+  defaultThreshold?: number;
+  /** A row to open on arrival, from an alert link (`/portfolio?open=BBRI`). */
+  openSymbol?: string | null;
+}) {
   const { t } = useTranslation();
+  const [sort, setSort] = useState<Sort>("signal");
+  const sorted = [...items].sort(SORTERS[sort]);
   const [addState, addAction, addPending] = useActionState(addToWatchlist, INITIAL);
   const [showPosition, setShowPosition] = useState(false);
   const [symbolValue, setSymbolValue] = useState("");
@@ -128,26 +158,47 @@ export function WatchlistManager({ items, defaultThreshold = 2 }: { items: Item[
       {items.length === 0 ? (
         <p className="text-sm text-text-muted">{t("watchlist.empty")}</p>
       ) : (
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <WatchlistRow key={item.symbol} item={item} />
-          ))}
-        </ul>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-text-subtle">
+            <label htmlFor="watch-sort">{t("watchlist.sortBy")}</label>
+            <select
+              id="watch-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as Sort)}
+              className="h-8 rounded-full border border-border bg-surface px-3 text-xs text-text"
+            >
+              <option value="signal">{t("watchlist.sort.signal")}</option>
+              <option value="symbol">{t("watchlist.sort.symbol")}</option>
+              <option value="added">{t("watchlist.sort.added")}</option>
+            </select>
+          </div>
+          <ul className="space-y-3">
+            {sorted.map((item) => (
+              <WatchlistRow key={item.symbol} item={item} initiallyOpen={item.symbol === openSymbol} />
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
 }
 
-function WatchlistRow({ item }: { item: Item }) {
+function WatchlistRow({ item, initiallyOpen }: { item: Item; initiallyOpen: boolean }) {
   const { t } = useTranslation();
   const [removeState, removeAction, removePending] = useActionState(removeFromWatchlist, INITIAL);
   const [updateState, updateAction, updatePending] = useActionState(updateWatchItem, INITIAL);
   const id = item.symbol.toLowerCase();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyOpen);
+  const rowRef = useRef<HTMLLIElement>(null);
+
+  // Arriving from an alert: bring the opened row into view once.
+  useEffect(() => {
+    if (initiallyOpen) rowRef.current?.scrollIntoView({ block: "start" });
+  }, [initiallyOpen]);
   const activeRules = item.rules.filter((r) => r.enabled).length;
 
   return (
-    <li className="rounded-[var(--radius-sm)] border border-border bg-surface-raised p-3">
+    <li ref={rowRef} id={item.symbol} className="scroll-mt-24 rounded-[var(--radius-sm)] border border-border bg-surface-raised p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -171,6 +222,25 @@ function WatchlistRow({ item }: { item: Item }) {
               </span>
             )}
           </div>
+          {item.lastClose !== null ? (
+            <p className="tnum mt-1 text-sm text-text">
+              {formatIdr(item.lastClose)}
+              {item.change1d !== null ? (
+                <span className={`ml-1.5 font-semibold ${item.change1d >= 0 ? "text-up" : "text-down"}`}>
+                  {formatPercent(item.change1d)}
+                </span>
+              ) : null}
+              {item.nextAction ? (
+                <span className="ml-2 text-xs text-text-muted">
+                  · {t("watchlist.nextAction", { date: item.nextAction.date, label: item.nextAction.label })}
+                </span>
+              ) : null}
+            </p>
+          ) : item.nextAction ? (
+            <p className="mt-1 text-xs text-text-muted">
+              {t("watchlist.nextAction", { date: item.nextAction.date, label: item.nextAction.label })}
+            </p>
+          ) : null}
           <p className="mt-0.5 text-xs text-text-subtle">
             {t("watchlist.alertSummary", { z: item.zScoreThreshold.toFixed(1) })}
             {item.holding

@@ -11,6 +11,6 @@ import type { FormState } from "@/lib/forms/state";
  */
 export async function watchFromList(_prev: FormState, formData: FormData): Promise<FormState> {
   const result = await addToWatchlist({}, formData);
-  revalidatePath("/stocks/list");
+  revalidatePath("/stocks");
   return result.error ? { error: result.error } : { ok: result.success };
 }

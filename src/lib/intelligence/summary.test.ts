@@ -330,3 +330,38 @@ describe("concludeTrackRecord", () => {
     expect(concludeTrackRecord({ ...record, ordinary: bucket(5, null) }).points).toEqual([]);
   });
 });
+
+describe("portfolio financial point wording", () => {
+  const facts = (stats: Partial<WatchFacts["stats"]>): WatchFacts => ({
+    symbol: "TLKM",
+    runDate: "2026-10-02",
+    asOf: "2026-10-02",
+    zScore: 0.5,
+    fitQuality: 0.6,
+    peers: 5,
+    total: 0,
+    market: 0,
+    sector: 0,
+    idio: 0,
+    realityVerdict: "confirmed",
+    smartMoneyType: null,
+    smartMoneyConviction: null,
+    prices: null,
+    keyStats: null,
+    stats: {
+      pe: null, pb: null, eps: null, revenueGrowth: null, earningsGrowth: null, roe: null,
+      netMargin: null, dividendYield: null, debtToEquity: null, rangePosition: null, low52: null, high52: null,
+      ...stats,
+    },
+  });
+  const point = (stats: Partial<WatchFacts["stats"]>) =>
+    concludePortfolio(
+      portfolioFacts({ symbols: ["TLKM"], stocks: [{ facts: facts(stats), isSignal: false }], unreadAlerts: 0, actions: [], rulesTriggered: [], actionDays: 30 }),
+    ).points.find((p) => p.key.startsWith("conclusion.portfolio.financial"));
+
+  it("names only the figures that are known", () => {
+    expect(point({ earningsGrowth: -0.27 })?.key).toBe("conclusion.portfolio.financialEarnings");
+    expect(point({ revenueGrowth: 0.4 })?.key).toBe("conclusion.portfolio.financialRevenue");
+    expect(point({ earningsGrowth: -0.27, revenueGrowth: 0.05 })?.key).toBe("conclusion.portfolio.financial");
+  });
+});

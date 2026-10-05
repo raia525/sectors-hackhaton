@@ -96,11 +96,22 @@ rather than one long one. See `src/lib/intelligence/pipeline.ts`.
 
 ## Sections, conclusions and settings
 
-The signed-in app has three menus, each with tabs (`SectionTabs`): Market
-(`/market`, sectors, track record), Stocks (`/stocks` analyse, compare,
-ticker list) and Portfolio (`/portfolio` watchlist, alerts, calendar).
-`/brief`, `/compare` and `/watchlist` redirect (next.config.ts), and
-`/?symbol=` goes to `/stocks?symbol=`, because sent emails link there.
+The signed-in app has three menus:
+
+- **Market** (`/market`): one page with sections (summary, `#sectors`,
+  `#track-record`), no sub-tabs.
+- **Stocks**: `/stocks` is the ticker list with search and watchlist
+  shortcuts, `/stocks?symbol=` is an analysis, and `/stocks/compare`.
+- **Portfolio**: `/portfolio` is the watchlist with its upcoming events
+  card; `/portfolio/alerts` carries an unread badge on its tab.
+
+Each fact has one home; before adding a page, check it is not already
+shown elsewhere. Old addresses (`/brief`, `/compare`, `/watchlist`,
+`/market/sectors`, `/market/track-record`, `/stocks/list`,
+`/portfolio/calendar`) redirect in next.config.ts, and `/?symbol=` goes to
+`/stocks?symbol=`, because sent emails link to them. An alert opens the
+stock's stored analysis on the watchlist (`/portfolio?open=CODE#CODE`),
+which costs nothing, rather than a fresh analysis.
 
 - Every page that shows an analysis opens with a `ConclusionBlock` built by
   `src/lib/intelligence/summary.ts`. It only picks sentences from figures

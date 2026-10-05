@@ -3,7 +3,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { summarizeCorporateActions, type CorporateActionItem } from "@/lib/analysis/corporate-actions";
 import { getSignalBars } from "@/lib/settings/server";
-import { buildCalendar, CALENDAR_DAYS, type CalendarEntry } from "./calendar";
+import { buildCalendar, type CalendarEntry } from "./calendar";
 import { isSignal } from "./track-record";
 import { readSnapshotFacts, type WatchFacts } from "./watch-facts";
 import { portfolioFacts, type PortfolioFacts } from "./summary";
@@ -16,7 +16,11 @@ import { portfolioFacts, type PortfolioFacts } from "./summary";
  * named, not fetched.
  */
 
-/** How far ahead the watchlist conclusion looks for corporate actions. */
+/**
+ * How far ahead the watchlist looks for corporate actions, in its
+ * conclusion and its "Upcoming events" card alike, so one dividend never
+ * shows under two different horizons.
+ */
 export const CONCLUSION_ACTION_DAYS = 30;
 
 export interface WatchedStock {
@@ -69,14 +73,13 @@ export const loadPortfolio = cache(async (userId: string, now: Date = new Date()
   }
 
   const bySymbol = [...stocks.entries()].map(([symbol, s]) => ({ symbol, items: s.actions }));
-  const calendar: CalendarEntry[] = buildCalendar(bySymbol, now, CALENDAR_DAYS);
-  const conclusionActions = buildCalendar(bySymbol, now, CONCLUSION_ACTION_DAYS);
+  const upcoming: CalendarEntry[] = buildCalendar(bySymbol, now, CONCLUSION_ACTION_DAYS);
 
   const facts: PortfolioFacts = portfolioFacts({
     symbols,
     stocks: [...stocks.values()].map((s) => ({ facts: s.facts, isSignal: s.isSignal })),
     unreadAlerts,
-    actions: conclusionActions.map((e) => ({
+    actions: upcoming.map((e) => ({
       symbol: e.symbol,
       kind: e.item.kind,
       date: e.item.date,
@@ -95,7 +98,7 @@ export const loadPortfolio = cache(async (userId: string, now: Date = new Date()
     holdings,
     holdingBySymbol,
     stocks,
-    calendar,
+    upcoming,
     notCovered: symbols.filter((s) => !stocks.has(s)).sort(),
     facts,
     bars,
